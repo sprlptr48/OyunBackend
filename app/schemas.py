@@ -1,11 +1,16 @@
 from datetime import datetime
 from pydantic import BaseModel
 
+from app.models import SessionModel
+
 
 class SessionSchema(BaseModel):
     session_id: str
     user_id: int
     valid_until: datetime
+    class Config:
+        from_attributes = True
+
 
 class UserBase(BaseModel):
     email: str
@@ -31,4 +36,9 @@ class ReturnUser(BaseModel):
     email: str
     phone: str | None = None
     user_status: str
+    class Config:
+        from_attributes = True
 
+class RegisterResponse(BaseModel):
+    user: ReturnUser
+    session: SessionSchema

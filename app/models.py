@@ -16,7 +16,7 @@ class User(Base):
 
 
 class SessionModel(Base):
-    __tablename__ = 'sessions'
+    __tablename__ = 'session'
     session_id = Column(String(255), primary_key=True)
     user_id = Column(Integer, ForeignKey('users.userid'))
     valid_until = Column(DateTime)

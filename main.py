@@ -1,12 +1,11 @@
 from datetime import datetime
-from warnings import catch_warnings
 
 from fastapi import FastAPI, HTTPException, Depends
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session
 
 from app.models import User, SessionModel, schema_to_model
-from app.schemas import UserCreate, UserLogin, SessionSchema
+from app.schemas import UserCreate, UserLogin, SessionSchema, RegisterResponse
 from app.security import generate_session_id, hash_password, verify_password
 from app.crud import create_user, save_session, get_user_by_login
 from app.database import get_db
@@ -19,25 +18,35 @@ async def root():
     return {"message": "Hello World"}
 
 
-@app.post("/register")
+@app.post("/register", response_model=RegisterResponse)
 async def register(new_user: UserCreate, encrypted: bool, db: Session = Depends(get_db)):
-    if encrypted:
-        print(new_user)
-    else:
+    if not encrypted:
         new_user.password = hash_password(new_user.password)
         print(new_user)
 
-    user: User = User(**(new_user.model_dump()), user_status="open")
+    user: User = User(**(new_user.model_dump()), user_status="open") # Gelen UserCreate schema User Model yapılır
+    session_id = generate_session_id()
+    session = SessionSchema(session_id=session_id, user_id=-1, valid_until=datetime.now())
+    sessionModel = schema_to_model(session, SessionModel)  # Convert to model for DB operations
+
     try:
         created_user = create_user(db, user)
-    except IntegrityError:
+        db.flush()
+        sessionModel.user_id = created_user.userid
+        saved_session = save_session(db, sessionModel)
+        db.commit()
+        db.refresh(created_user)
+        db.refresh(saved_session)
+    except IntegrityError as e:
+        print(e)
+        db.rollback()
         raise HTTPException(400, "User already exists")
+    except Exception as e:
+        db.rollback()
+        print(f"Error: {e}")
+        raise HTTPException(501, "Error when creating user")
+    return {"user": created_user, "session": saved_session}
 
-    session_id = generate_session_id()
-    session = SessionSchema(session_id=session_id, user_id=created_user.userid, valid_until=datetime.now())
-    sessionModel = SessionModel(**session.model_dump()) # Convert to model for DB operations
-    save_session(db, sessionModel)
-    return {"message": f"Hello {new_user}, Session: {session}"}
 
 @app.post("/login")
 async def login(user: UserLogin, db: Session = Depends(get_db)):
