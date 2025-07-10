@@ -14,10 +14,14 @@ def create_user(db: Session, user: User) -> User:
 
  # Kullanıcı nesnesine göre, mail ya da telefon için arama yap
 def get_user_by_login(db: Session, user_data: User):
-    if (user_data.email is None) and (user_data.phone is None):
-        return None
-    return db.query(User).filter((User.phone == user_data.phone) | (User.email == user_data.email)).first()
-
+    query = db.query(User)
+    if user_data.email and user_data.phone:
+        return query.filter(User.email == user_data.email, User.phone == user_data.phone).first()
+    elif user_data.email:
+        return query.filter(User.email == user_data.email).first()
+    elif user_data.phone:
+        return query.filter(User.phone == user_data.phone).first()
+    return None
 def get_user_by_id(db: Session, userid: int):
     return db.query(User).filter(User.userid == userid).first()
 
