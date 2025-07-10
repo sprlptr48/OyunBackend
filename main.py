@@ -77,7 +77,11 @@ async def login(user: UserLogin, db: Session = Depends(get_db)):
                             user_id=foundUser.userid, valid_until=datetime.now(timezone.utc) + timedelta(days=1))
     sessionModel = schema_to_model(session, SessionModel)
     save_session(db, sessionModel)
-    return {"user": foundUser, "session": session}
+    db.commit()
+    db.refresh(foundUser)
+    db.refresh(sessionModel)
+    returnUser = ReturnUser.model_validate(foundUser) # Convert to return value, which removes password
+    return {"user": returnUser, "session": session}
 
 """ Gelen kullanıcı verisine göre düzenleme yapar.
     userid ve password bulunmalıdır.
@@ -93,6 +97,9 @@ def edit_user_endpoint(user: UserUpdate, db: Session = Depends(get_db)):
 @app.get("/verify-session")
 def verify_session(session: SessionSchema, db: Session = Depends(get_db)):
     db_session = get_session(db, session.session_id)
+   # print("DB valid_until:", db_session.valid_until)
+    #print("Now:", datetime.now(timezone.utc))
+    #print("TZ info:", db_session.valid_until.tzinfo)
     if db_session is None:
         return {"valid": False}
     if db_session.valid_until < datetime.now(timezone.utc):
