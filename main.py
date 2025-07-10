@@ -1,13 +1,13 @@
-from datetime import datetime
+from datetime import datetime, timedelta
 
 from fastapi import FastAPI, HTTPException, Depends
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session
 
 from app.models import User, SessionModel, schema_to_model
-from app.schemas import UserCreate, UserLogin, SessionSchema, RegisterResponse, ReturnUser
-from app.security import generate_session_id, hash_password, verify_password
-from app.crud import create_user, save_session, get_user_by_login
+from app.schemas import UserCreate, UserLogin, SessionSchema, RegisterResponse, ReturnUser, UserUpdate, ForgotPassword
+from app.security import generate_session_id, hash_password, verify_password, forgot_password_code
+from app.crud import create_user, save_session, get_user_by_login, get_session, edit_user
 from app.database import get_db
 
 app = FastAPI()
@@ -31,7 +31,8 @@ async def register(new_user: UserCreate, encrypted: bool, db: Session = Depends(
 
     user: User = User(**(new_user.model_dump()), user_status="open") # Gelen UserCreate schema User Model yapılır
     session_id = generate_session_id()
-    session = SessionSchema(session_id=session_id, user_id=-1, valid_until=datetime.now())
+    session = SessionSchema(session_id=session_id,
+                            user_id=-1, valid_until=datetime.now() + timedelta(days=1))
     sessionModel = schema_to_model(session, SessionModel)  # Convert to model for DB operations
 
     try:
@@ -58,14 +59,39 @@ async def register(new_user: UserCreate, encrypted: bool, db: Session = Depends(
 async def login(user: UserLogin, db: Session = Depends(get_db)):
     userModel = schema_to_model(user, User)
     foundUser = get_user_by_login(db, userModel)
-    if foundUser is None:
-        raise HTTPException(404, f"User not found")
+    if foundUser is None: # Kullanıcı yok
+        raise HTTPException(401, "Invalid credentials")
+    if not verify_password(user.password, foundUser.password): # Şifre yanlış
+        raise HTTPException(401, "Invalid credentials")
 
-    verify_password(user.password, foundUser.password)
     session_id = generate_session_id()
-    session = SessionSchema(session_id=session_id, user_id=user.userid, valid_until=datetime.now())
+    session = SessionSchema(session_id=session_id,
+                            user_id=foundUser.userid, valid_until=datetime.now() + timedelta(days=1))
     sessionModel = schema_to_model(session, SessionModel)
     save_session(db, sessionModel)
     return {"user": foundUser, "session": session}
 
+""" Gelen kullanıcı verisine göre düzenleme yapar.
+    userid bulunmalıdır.
+"""
+@app.post("/edit-user", status_code=200)
+def edit_user_endpoint(user: UserUpdate, db: Session = Depends(get_db)):
+    edited = edit_user(db, user.userid, user)
+    if edited is None: raise HTTPException(401, "Fail when editing user")
+    return {"result": True}
 
+@app.get("/verify-session")
+def verify_session(session: SessionSchema, db: Session = Depends(get_db)):
+    sessionModel = schema_to_model(session, SessionModel)
+    result = get_session(db, sessionModel)
+    if result is not None:
+        return {"valid": True}
+    return {"valid": False}
+
+@app.post("/forgot-password", status_code=200)
+def forgot_password(user_data: ForgotPassword, db: Session = Depends(get_db)):
+    blank_user = User(email=user_data.email, phone=user_data.phone)
+    blank_user = get_user_by_login(db, blank_user)
+    if blank_user is None: raise HTTPException(401, "Invalid credentials")
+    code = forgot_password_code()
+    return {"code": code}

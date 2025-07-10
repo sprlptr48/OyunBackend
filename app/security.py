@@ -20,6 +20,9 @@ if not SECRET_KEY:
 def generate_session_id():
     return secrets.token_hex(127)
 
+def forgot_password_code():
+    return secrets.token_hex(6)
+
 password_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
 
 def hash_password(password):

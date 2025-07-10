@@ -24,9 +24,14 @@ class UserCreate(BaseModel):
     phone: str | None = None
 
 class UserLogin(BaseModel):
-    email: str | None
-    phone: str | None
+    email: str | None = None
+    phone: str | None = None
     password: str
+
+class ForgotPassword(BaseModel):
+    email: str | None = None
+    phone: str | None = None
+
 
 class ReturnUser(BaseModel):
     userid: int | None = None
@@ -38,6 +43,15 @@ class ReturnUser(BaseModel):
     user_status: str
     class Config:
         from_attributes = True
+
+class UserUpdate(BaseModel):
+    userid: int
+    name: str | None = None
+    surname: str | None = None
+    username: str | None = None
+    email: str | None = None
+    phone: str | None = None
+    password: str | None = None
 
 class RegisterResponse(BaseModel):
     user: ReturnUser
