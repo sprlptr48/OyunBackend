@@ -19,7 +19,7 @@ class SessionModel(Base):
     __tablename__ = 'session'
     session_id = Column(String(255), primary_key=True)
     user_id = Column(Integer, ForeignKey('users.userid'))
-    valid_until = Column(DateTime)
+    valid_until = Column(DateTime(timezone=True))
 
 def schema_to_model(schema_instance, model_class):
     return model_class(**schema_instance.model_dump())

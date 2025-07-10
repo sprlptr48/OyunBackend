@@ -50,6 +50,5 @@ def save_session(db: Session, session: SessionModel) -> SessionModel:
 """
     Session hala geçerliyse döndür, değilse None döndür
 """
-def get_session(db:Session, session: SessionModel):
-    return db.query(SessionModel).filter(SessionModel.session_id == session.session_id,
-                                         SessionModel.valid_until > datetime.now()).first()
+def get_session(db: Session, session_id: str):
+    return db.query(SessionModel).filter(SessionModel.session_id == session_id).first()

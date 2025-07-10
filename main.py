@@ -1,5 +1,5 @@
 from contextlib import asynccontextmanager
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone
 
 from fastapi import FastAPI, HTTPException, Depends
 from sqlalchemy.exc import IntegrityError
@@ -40,7 +40,7 @@ async def register(new_user: UserCreate, encrypted: bool, db: Session = Depends(
     user: User = User(**(new_user.model_dump()), user_status="open") # Gelen UserCreate schema User Model yapılır
     session_id = generate_session_id()
     session = SessionSchema(session_id=session_id,
-                            user_id=-1, valid_until=datetime.now() + timedelta(days=1))
+                            user_id=-1, valid_until=datetime.now(timezone.utc) + timedelta(days=1))
     sessionModel = schema_to_model(session, SessionModel)  # Convert to model for DB operations
 
     try:
@@ -74,7 +74,7 @@ async def login(user: UserLogin, db: Session = Depends(get_db)):
 
     session_id = generate_session_id()
     session = SessionSchema(session_id=session_id,
-                            user_id=foundUser.userid, valid_until=datetime.now() + timedelta(days=1))
+                            user_id=foundUser.userid, valid_until=datetime.now(timezone.utc) + timedelta(days=1))
     sessionModel = schema_to_model(session, SessionModel)
     save_session(db, sessionModel)
     return {"user": foundUser, "session": session}
@@ -89,13 +89,15 @@ def edit_user_endpoint(user: UserUpdate, db: Session = Depends(get_db)):
     if edited is None: raise HTTPException(401, "Fail when editing user")
     return {"result": True}
 
+
 @app.get("/verify-session")
 def verify_session(session: SessionSchema, db: Session = Depends(get_db)):
-    sessionModel = schema_to_model(session, SessionModel)
-    result = get_session(db, sessionModel)
-    if result is not None:
-        return {"valid": True}
-    return {"valid": False}
+    db_session = get_session(db, session.session_id)
+    if db_session is None:
+        return {"valid": False}
+    if db_session.valid_until < datetime.now(timezone.utc):
+        return {"valid": False}
+    return {"valid": True}
 
 @app.post("/forgot-password", status_code=200)
 def forgot_password(user_data: ForgotPassword, db: Session = Depends(get_db)):
