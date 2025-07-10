@@ -1,6 +1,4 @@
 import os
-import uuid
-
 from dotenv import load_dotenv
 from datetime import datetime, timedelta
 from passlib.context import CryptContext
@@ -18,10 +16,10 @@ if not SECRET_KEY:
 
 # Encryption
 def generate_session_id():
-    return secrets.token_hex(127)
+    return secrets.token_hex(nbytes=127)
 
 def forgot_password_code():
-    return secrets.token_hex(6)
+    return secrets.token_hex(nbytes=3)
 
 password_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
 

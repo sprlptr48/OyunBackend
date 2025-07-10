@@ -9,7 +9,7 @@ class User(Base):
     name = Column(String)
     surname = Column(String)
     username = Column(String)
-    email = Column(String, unique=True)
+    email = Column(String, unique=True, nullable=False)
     password = Column(String)
     user_status = Column(String)
     phone = Column(String, unique=True)

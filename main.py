@@ -1,16 +1,24 @@
+from contextlib import asynccontextmanager
 from datetime import datetime, timedelta
 
 from fastapi import FastAPI, HTTPException, Depends
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session
 
+from app import models
 from app.models import User, SessionModel, schema_to_model
 from app.schemas import UserCreate, UserLogin, SessionSchema, RegisterResponse, ReturnUser, UserUpdate, ForgotPassword
 from app.security import generate_session_id, hash_password, verify_password, forgot_password_code
 from app.crud import create_user, save_session, get_user_by_login, get_session, edit_user
-from app.database import get_db
+from app.database import get_db, Base, engine
 
-app = FastAPI()
+
+@asynccontextmanager
+async def lifespan(app_instance: FastAPI):
+    Base.metadata.create_all(bind=engine)
+    yield
+
+app = FastAPI(lifespan=lifespan)
 
 
 @app.get("/")
@@ -72,10 +80,11 @@ async def login(user: UserLogin, db: Session = Depends(get_db)):
     return {"user": foundUser, "session": session}
 
 """ Gelen kullanıcı verisine göre düzenleme yapar.
-    userid bulunmalıdır.
+    userid ve password bulunmalıdır.
 """
 @app.post("/edit-user", status_code=200)
 def edit_user_endpoint(user: UserUpdate, db: Session = Depends(get_db)):
+    user.password = hash_password(user.password)
     edited = edit_user(db, user.userid, user)
     if edited is None: raise HTTPException(401, "Fail when editing user")
     return {"result": True}
