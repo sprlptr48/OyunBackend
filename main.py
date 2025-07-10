@@ -5,7 +5,7 @@ from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session
 
 from app.models import User, SessionModel, schema_to_model
-from app.schemas import UserCreate, UserLogin, SessionSchema, RegisterResponse
+from app.schemas import UserCreate, UserLogin, SessionSchema, RegisterResponse, ReturnUser
 from app.security import generate_session_id, hash_password, verify_password
 from app.crud import create_user, save_session, get_user_by_login
 from app.database import get_db
@@ -18,7 +18,12 @@ async def root():
     return {"message": "Hello World"}
 
 
-@app.post("/register", response_model=RegisterResponse)
+""" Takes user info as input: name, surname, username, email, password, phone(optional)
+    and uses the encrypted param to handle the password.
+    returns UserInfo and Session Objects.
+    UserInfo: 
+"""
+@app.post("/register", response_model=RegisterResponse, status_code=201)
 async def register(new_user: UserCreate, encrypted: bool, db: Session = Depends(get_db)):
     if not encrypted:
         new_user.password = hash_password(new_user.password)
@@ -45,10 +50,11 @@ async def register(new_user: UserCreate, encrypted: bool, db: Session = Depends(
         db.rollback()
         print(f"Error: {e}")
         raise HTTPException(501, "Error when creating user")
-    return {"user": created_user, "session": saved_session}
+    returnUser = ReturnUser.model_validate(created_user) # Convert to return value, which removes password
+    return {"user": returnUser, "session": saved_session}
 
 
-@app.post("/login")
+@app.post("/login", response_model=RegisterResponse, status_code=200)
 async def login(user: UserLogin, db: Session = Depends(get_db)):
     userModel = schema_to_model(user, User)
     foundUser = get_user_by_login(db, userModel)
@@ -60,6 +66,6 @@ async def login(user: UserLogin, db: Session = Depends(get_db)):
     session = SessionSchema(session_id=session_id, user_id=user.userid, valid_until=datetime.now())
     sessionModel = schema_to_model(session, SessionModel)
     save_session(db, sessionModel)
-    return {"message": f"Hello {foundUser}, Session: {session}"}
+    return {"user": foundUser, "session": session}
 
 

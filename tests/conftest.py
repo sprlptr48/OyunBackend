@@ -5,16 +5,17 @@ from fastapi.testclient import TestClient
 
 from main import app
 from app.database import Base, get_db
-from app import models, schemas
+from app.models import User, SessionModel
+from app import schemas
 
-SQLALCHEMY_DATABASE_URL = 'sqlite:///:memory:'
+SQLALCHEMY_DATABASE_URL = "sqlite:///./user.db"
 
 engine = create_engine(SQLALCHEMY_DATABASE_URL, connect_args={'check_same_thread': False})
 
 TestingSessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)
 
 @pytest.fixture()
-def db_session(): #SQLite bağlantısını oluştur.
+def db_session():
     Base.metadata.create_all(bind=engine)
     db = TestingSessionLocal()
     try:
@@ -24,13 +25,18 @@ def db_session(): #SQLite bağlantısını oluştur.
         Base.metadata.drop_all(bind=engine)
 
 @pytest.fixture()
-def client(db_session): # MySQL yerine SQLite bağlantısı sağlayacak bir override
+def client(db_session):
     def override_get_db():
         try:
             yield db_session
         finally:
-            db_session.close()
+            pass  # db_session zaten yönetiliyor
 
+    if not hasattr(app, 'dependency_overrides'):
+        app.dependency_overrides = {}
     app.dependency_overrides[get_db] = override_get_db
-    yield TestClient(app)
+    with TestClient(app) as c:
+        yield c
+    if hasattr(app, 'dependency_overrides'):
+        app.dependency_overrides.clear()
     app.dependency_overrides.clear()
