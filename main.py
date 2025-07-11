@@ -108,7 +108,7 @@ def edit_user_endpoint(user: UserUpdate, session: SessionSchema,  db: Session = 
     db_session = get_session(db, session.session_id)
     if db_session is None: # session yoksa
         return {"success": False, "message": "Not Authorized"}
-    elif db_session.user_id != user.user_id: # session, düzenlemeyi yapandan başkasına aitse
+    elif db_session.user_id != user.userid: # session, düzenlemeyi yapandan başkasına aitse
         return {"success": False, "message": "Not Authorized"}
     elif validate_session(session):
         return {"success": False, "message": "Not Authorized"}
