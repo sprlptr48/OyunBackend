@@ -124,9 +124,9 @@ def verify_session_endpoint(session: SessionSchema, db: Session = Depends(get_db
    # print("DB valid_until:", db_session.valid_until)
     #print("Now:", datetime.now(timezone.utc))
     #print("TZ info:", db_session.valid_until.tzinfo)
-    session = SessionSchema.model_validate(db_session)
     if db_session is None:
         return {"success": False, "message": "Session not found"}
+    session = SessionSchema.model_validate(db_session)
     if not validate_session(session):
         return {"success": False, "message": "Session expired"}
     return {"success": True, "message": "Session verified"}
