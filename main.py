@@ -128,8 +128,8 @@ def verify_session_endpoint(session: SessionSchema, db: Session = Depends(get_db
     print(session)
     if db_session is None:
         return {"success": False, "message": "Session not found"}
-    session = SessionSchema.model_validate(db_session)
-    if not validate_session(session):
+    session_new = SessionSchema.model_validate(db_session)
+    if not validate_session(session_new):
         return {"success": False, "message": "Session expired"}
     if db_session.user_id != session.user_id:
         return {"success": False, "message": "Session not found"}
