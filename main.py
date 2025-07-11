@@ -112,7 +112,8 @@ def edit_user_endpoint(user: UserUpdate, session: SessionSchema,  db: Session = 
         return {"success": False, "message": "Not Authorized"}
     elif not validate_session(session):
         return {"success": False, "message": "Not Authorized"}
-    user.password = hash_password(user.password)
+    if (user.password):
+        user.password = hash_password(user.password)
     edited = edit_user(db, user.userid, user)
     if edited is None: return {"success": False, "message": "Invalid credentials"}
     return {"success": True}
