@@ -54,5 +54,7 @@ class UserUpdate(BaseModel):
     password: str | None = None
 
 class RegisterResponse(BaseModel):
-    user: ReturnUser
-    session: SessionSchema
+    success: bool
+    message: str | None = None
+    user: ReturnUser | None = None
+    session: SessionSchema | None = None

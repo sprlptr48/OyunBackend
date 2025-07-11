@@ -6,13 +6,13 @@ from .database import Base
 class User(Base):
     __tablename__ = 'users'
     userid = Column(Integer, primary_key=True, autoincrement=True)
-    name = Column(String)
-    surname = Column(String)
-    username = Column(String)
-    email = Column(String, unique=True, nullable=False)
-    password = Column(String)
-    user_status = Column(String)
-    phone = Column(String, unique=True)
+    name = Column(String(length=40))
+    surname = Column(String(length=40))
+    username = Column(String(length=40), unique=True, nullable=False)
+    email = Column(String(length=40), unique=True, nullable=False)
+    password = Column(String(length=60)) #bcrypt uses 60 chars
+    user_status = Column(String(length=40))
+    phone = Column(String(length=20), unique=True)
 
 
 class SessionModel(Base):

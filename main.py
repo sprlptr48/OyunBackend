@@ -9,12 +9,14 @@ from app import models
 from app.models import User, SessionModel, schema_to_model
 from app.schemas import UserCreate, UserLogin, SessionSchema, RegisterResponse, ReturnUser, UserUpdate, ForgotPassword
 from app.security import generate_session_id, hash_password, verify_password, forgot_password_code
-from app.crud import create_user, save_session, get_user_by_login, get_session, edit_user
+from app.crud import create_user, save_session, get_user_by_login, get_session, edit_user, verify_email, verify_phone, \
+    normalize_phone
 from app.database import get_db, Base, engine
 
 
 @asynccontextmanager
 async def lifespan(app_instance: FastAPI):
+    Base.metadata.drop_all(bind=engine)
     Base.metadata.create_all(bind=engine)
     yield
 
@@ -23,7 +25,7 @@ app = FastAPI(lifespan=lifespan)
 
 @app.get("/")
 async def root():
-    return {"message": "Hello World"}
+    return {"success": True, "message": "API working"}
 
 
 """ Takes user info as input: name, surname, username, email, password, phone(optional)
@@ -31,11 +33,19 @@ async def root():
     returns UserInfo and Session Objects.
     UserInfo: 
 """
-@app.post("/register", response_model=RegisterResponse, status_code=201)
+@app.post("/register", response_model=RegisterResponse)
 async def register(new_user: UserCreate, encrypted: bool, db: Session = Depends(get_db)):
+    email_success = verify_email(new_user.email)
+    if email_success is False:
+        return {"success": False, "message": "Please enter a correct email"}
+    phone_success = verify_phone(new_user.phone)
+    if phone_success is False:
+        new_phone = normalize_phone(new_user.phone)
+        phone_success = verify_phone(new_phone)
+        if phone_success is False:
+            return {"success": False, "message": "Please enter a valid phone number"}
     if not encrypted:
         new_user.password = hash_password(new_user.password)
-        print(new_user)
 
     user: User = User(**(new_user.model_dump()), user_status="open") # Gelen UserCreate schema User Model yapılır
     session_id = generate_session_id()
@@ -54,13 +64,21 @@ async def register(new_user: UserCreate, encrypted: bool, db: Session = Depends(
     except IntegrityError as e:
         print(e)
         db.rollback()
-        raise HTTPException(400, "User already exists")
+        # get the original DB error from mysql
+        error_info = str(e.orig).lower()
+        if 'email' in error_info:
+            return {"success": False, "message": "Email already registered"}
+        elif 'username' in error_info:
+            return {"success": False, "message": "Username already registered"}
+        elif 'phone' in error_info:
+            return {"success": False, "message": "Phone number already registered"}
+        return {"success": False, "message": "User already exists"}
     except Exception as e:
         db.rollback()
         print(f"Error: {e}")
         raise HTTPException(501, "Error when creating user")
     returnUser = ReturnUser.model_validate(created_user) # Convert to return value, which removes password
-    return {"user": returnUser, "session": saved_session}
+    return {"success": True, "user": returnUser, "session": saved_session}
 
 
 @app.post("/login", response_model=RegisterResponse, status_code=200)
@@ -68,9 +86,9 @@ async def login(user: UserLogin, db: Session = Depends(get_db)):
     userModel = schema_to_model(user, User)
     foundUser = get_user_by_login(db, userModel)
     if foundUser is None: # Kullanıcı yok
-        raise HTTPException(401, "Invalid credentials")
+        return {"success": False, "message": "Invalid credentials"}
     if not verify_password(user.password, foundUser.password): # Şifre yanlış
-        raise HTTPException(401, "Invalid credentials")
+        return {"success": False, "message": "Invalid credentials"}
 
     session_id = generate_session_id()
     session = SessionSchema(session_id=session_id,
@@ -81,7 +99,7 @@ async def login(user: UserLogin, db: Session = Depends(get_db)):
     db.refresh(foundUser)
     db.refresh(sessionModel)
     returnUser = ReturnUser.model_validate(foundUser) # Convert to return value, which removes password
-    return {"user": returnUser, "session": session}
+    return {"success": True, "user": returnUser, "session": session}
 
 """ Gelen kullanıcı verisine göre düzenleme yapar.
     userid ve password bulunmalıdır.
@@ -90,8 +108,8 @@ async def login(user: UserLogin, db: Session = Depends(get_db)):
 def edit_user_endpoint(user: UserUpdate, db: Session = Depends(get_db)):
     user.password = hash_password(user.password)
     edited = edit_user(db, user.userid, user)
-    if edited is None: raise HTTPException(401, "Fail when editing user")
-    return {"result": True}
+    if edited is None: return {"success": False, "message": "Invalid credentials"}
+    return {"success": True}
 
 
 @app.get("/verify-session")
@@ -101,15 +119,15 @@ def verify_session(session: SessionSchema, db: Session = Depends(get_db)):
     #print("Now:", datetime.now(timezone.utc))
     #print("TZ info:", db_session.valid_until.tzinfo)
     if db_session is None:
-        return {"valid": False}
+        return {"success": False, "message": "Session not found"}
     if db_session.valid_until < datetime.now(timezone.utc):
-        return {"valid": False}
-    return {"valid": True}
+        return {"success": False, "message": "Session expired"}
+    return {"success": True, "message": "Session verified"}
 
 @app.post("/forgot-password", status_code=200)
 def forgot_password(user_data: ForgotPassword, db: Session = Depends(get_db)):
     blank_user = User(email=user_data.email, phone=user_data.phone)
     blank_user = get_user_by_login(db, blank_user)
-    if blank_user is None: raise HTTPException(401, "Invalid credentials")
+    if blank_user is None: return {"success": False, "message": "Invalid credentials"}
     code = forgot_password_code()
     return {"code": code}
