@@ -9,9 +9,9 @@ from app import models
 from app.models import User, SessionModel, schema_to_model
 from app.schemas import UserCreate, UserLogin, SessionSchema, RegisterResponse, ReturnUser, UserUpdate, ForgotPassword
 from app.security import generate_session_id, hash_password, verify_password, forgot_password_code
-from app.crud import create_user, save_session, get_user_by_login, get_session, edit_user, verify_email, verify_phone, \
-    normalize_phone
+from app.crud import create_user, save_session, get_user_by_login, get_session, edit_user
 from app.database import get_db, Base, engine
+from app.utils import validate_session, verify_email, verify_phone, normalize_phone
 
 
 @asynccontextmanager
@@ -104,7 +104,14 @@ async def login(user: UserLogin, db: Session = Depends(get_db)):
     userid ve password bulunmalıdır.
 """
 @app.post("/edit-user", status_code=200)
-def edit_user_endpoint(user: UserUpdate, db: Session = Depends(get_db)):
+def edit_user_endpoint(user: UserUpdate, session: SessionSchema,  db: Session = Depends(get_db)):
+    db_session = get_session(db, session.session_id)
+    if db_session is None: # session yoksa
+        return {"success": False, "message": "Not Authorized"}
+    elif db_session.userid != user.user_id: # session, düzenlemeyi yapandan başkasına aitse
+        return {"success": False, "message": "Not Authorized"}
+    elif validate_session(session):
+        return {"success": False, "message": "Not Authorized"}
     user.password = hash_password(user.password)
     edited = edit_user(db, user.userid, user)
     if edited is None: return {"success": False, "message": "Invalid credentials"}
@@ -112,14 +119,15 @@ def edit_user_endpoint(user: UserUpdate, db: Session = Depends(get_db)):
 
 
 @app.get("/verify-session")
-def verify_session(session: SessionSchema, db: Session = Depends(get_db)):
+def verify_session_endpoint(session: SessionSchema, db: Session = Depends(get_db)):
     db_session = get_session(db, session.session_id)
    # print("DB valid_until:", db_session.valid_until)
     #print("Now:", datetime.now(timezone.utc))
     #print("TZ info:", db_session.valid_until.tzinfo)
+    session = SessionSchema.model_validate(db_session)
     if db_session is None:
         return {"success": False, "message": "Session not found"}
-    if db_session.valid_until < datetime.now(timezone.utc):
+    if not validate_session(session):
         return {"success": False, "message": "Session expired"}
     return {"success": True, "message": "Session verified"}
 

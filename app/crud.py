@@ -1,6 +1,3 @@
-from datetime import datetime
-import re
-
 from .models import *
 from sqlalchemy.orm import Session
 
@@ -43,30 +40,6 @@ def edit_user(db: Session, user_id: int, user_update_data: UserUpdate):
     db.refresh(db_user)
 
     return db_user
-""" Check if email is in correct form: example@domain.com """
-def verify_email(email: str):
-    regex = r'^[\w\-\.]+@([\w-]+\.)+[\w-]{2,}$'
-
-    matches = re.findall(regex, email, re.MULTILINE)
-    if len(matches) != 1:
-        return False
-    else:
-        return True
-""" Check if phone number is in correct form:  """
-def verify_phone(phone: str):
-    regex = r'^(?:\+?\d{1,4})?0?\d{10}$'
-    return re.fullmatch(regex, phone, re.MULTILINE)
-""" Telefon numarasındaki boşlukları ve gereksiz işaretleri siler. """
-def normalize_phone(phone: str) -> str:
-    # Remove spaces, dashes, underscores, parentheses, asterisks, etc.
-    phone = phone.strip()
-
-    # Preserve leading '+' if present, remove all non-digit characters
-    if phone.startswith('+'):
-        phone = '+' + re.sub(r'\D', '', phone[1:])
-    else:
-        phone = re.sub(r'\D', '', phone)
-    return phone
 
 
 def save_session(db: Session, session: SessionModel) -> SessionModel:
@@ -74,7 +47,7 @@ def save_session(db: Session, session: SessionModel) -> SessionModel:
     return session
 
 """
-    Session hala geçerliyse döndür, değilse None döndür
+    Session getir
 """
 def get_session(db: Session, session_id: str):
     return db.query(SessionModel).filter(SessionModel.session_id == session_id).first()
