@@ -16,7 +16,6 @@ from app.database import get_db, Base, engine
 
 @asynccontextmanager
 async def lifespan(app_instance: FastAPI):
-    Base.metadata.drop_all(bind=engine)
     Base.metadata.create_all(bind=engine)
     yield
 
