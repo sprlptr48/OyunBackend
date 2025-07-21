@@ -41,7 +41,7 @@ class ResetPasswordSchema(BaseModel):
 class VerifyEmailSchema(BaseModel):
     email: str | None = None
     phone: str | None = None
-    recovery_code: str
+    verification_code: str
 
 class ReturnUser(BaseModel):
     userid: int | None = None

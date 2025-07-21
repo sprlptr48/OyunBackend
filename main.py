@@ -199,9 +199,9 @@ async def verify_email_endpoint(login_data: VerifyEmailSchema, db: Session = Dep
     new_user = User(email=login_data.email, phone=login_data.phone)
     new_user = get_user_by_login(db, new_user)
     if new_user is None: return {"success": False, "message": "Invalid credentials"}
-    validation_result = validate_email_verification_code(db, new_user.email, login_data.recovery_code)
+    validation_result = validate_email_verification_code(db, new_user.email, login_data.verification_code)
     if not validation_result:
         return {"success": False, "message": "Invalid credentials"}
     edit_email_status(db, new_user.email, True)
-    return {"success": True, "message": "Validated Recovery Code", "code": login_data.recovery_code}
+    return {"success": True, "message": "Validated Verification Code", "code": login_data.verification_code}
 
