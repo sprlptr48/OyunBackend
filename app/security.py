@@ -18,8 +18,11 @@ if not SECRET_KEY:
 def generate_session_id():
     return secrets.token_hex(nbytes=127)
 
-def forgot_password_code():
+def verification_code():
     return secrets.token_hex(nbytes=3)
+
+def email_verification_code():
+    return secrets.token_hex(nbytes=16)
 
 password_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
 

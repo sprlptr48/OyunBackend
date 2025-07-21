@@ -5,7 +5,7 @@ from app.schemas import SessionSchema
 
 
 """ Check if email is in correct form: example@domain.com """
-def verify_email(email: str):
+def verify_email_format(email: str):
     regex = r'^[\w\-\.]+@([\w-]+\.)+[\w-]{2,}$'
 
     matches = re.findall(regex, email, re.MULTILINE)
@@ -14,7 +14,7 @@ def verify_email(email: str):
     else:
         return True
 """ Check if phone number is in correct form:  """
-def verify_phone(phone: str):
+def verify_phone_format(phone: str):
     regex = r'^(?:\+?\d{1,4})?0?\d{10}$'
     return re.fullmatch(regex, phone, re.MULTILINE)
 """ Telefon numarasındaki boşlukları ve gereksiz işaretleri siler. """

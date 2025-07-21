@@ -28,10 +28,20 @@ class UserLogin(BaseModel):
     phone: str | None = None
     password: str
 
-class ForgotPassword(BaseModel):
+class ForgotPasswordSchema(BaseModel):
     email: str | None = None
     phone: str | None = None
 
+class ResetPasswordSchema(BaseModel):
+    email: str | None = None
+    phone: str | None = None
+    new_password: str
+    recovery_code: str
+
+class VerifyEmailSchema(BaseModel):
+    email: str | None = None
+    phone: str | None = None
+    recovery_code: str
 
 class ReturnUser(BaseModel):
     userid: int | None = None
@@ -58,3 +68,5 @@ class RegisterResponse(BaseModel):
     message: str | None = None
     user: ReturnUser | None = None
     session: SessionSchema | None = None
+
+
