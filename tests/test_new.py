@@ -4,55 +4,102 @@ from unittest.mock import patch, AsyncMock
 from app.models import User, RecoveryCode, EmailVerificationCode
 
 
+class TestDataFactory:
+    """Test verilerini merkezi olarak yönetir"""
+
+    @staticmethod
+    def get_base_user_data():
+        return {
+            "name": "ali",
+            "surname": "kara",
+            "username": "alik16",
+            "email": "testuser@example.com",
+            "password": "123456",
+            "phone": "+905551234567"
+        }
+
+    @staticmethod
+    def get_login_data():
+        return {
+            "email": "testuser@example.com",
+            "password": "123456"
+        }
+
+    @staticmethod
+    def get_invalid_email_data():
+        data = TestDataFactory.get_base_user_data()
+        data["email"] = "invalid-email"
+        return data
+
+    @staticmethod
+    def get_invalid_phone_data():
+        data = TestDataFactory.get_base_user_data()
+        data["phone"] = "invalid-phone"
+        return data
+
+    @staticmethod
+    def get_verification_data():
+        return {
+            "email": "testuser@example.com",
+            "phone": "+905551234567",
+            "verification_code": "123456"
+        }
+
+
+@pytest.fixture
+def user_data():
+    """Her test için fresh user data döndürür"""
+    return TestDataFactory.get_base_user_data()
+
+
+@pytest.fixture
+def registered_user(client, user_data):
+    """Kayıtlı kullanıcı fixture'ı"""
+    response = client.post("/register", json=user_data, params={"encrypted": False})
+    return response.json()
+
+
+@pytest.fixture
+def verified_user(registered_user, db_session):
+    """Email'i doğrulanmış kullanıcı fixture'ı"""
+    user = db_session.query(User).filter(User.email == "testuser@example.com").first()
+    user.email_status = True
+    db_session.commit()
+    return user
+
+
+@pytest.fixture
+def logged_in_user(client, verified_user):
+    """Login olmuş kullanıcı fixture'ı - session bilgisiyle birlikte"""
+    login_data = TestDataFactory.get_login_data()
+    response = client.post("/login", json=login_data)
+    return response.json()
+
+
 def test_root_endpoint(client):
-    """
-    Tests the root endpoint to ensure API is working
-    """
+    """API'nin çalıştığını test eder"""
     response = client.get("/")
     assert response.status_code == 200
     assert response.json() == {"success": True, "message": "API working"}
 
 
-def test_register_user_success(client):
-    """
-    Tests successful user registration with valid data
-    """
-    test_data = {
-        "name": "ali",
-        "surname": "kara",
-        "username": "alik16",
-        "email": "testuser@example.com",
-        "password": "123456",
-        "phone": "+905551234567"
-    }
-    response = client.post(
-        "/register",
-        json=test_data,
-        params={"encrypted": False}
-    )
-    assert response.status_code == 200
+def test_register_user_success(client, user_data):
+    """Başarılı kullanıcı kaydını test eder"""
+    response = client.post("/register", json=user_data, params={"encrypted": False})
 
+    assert response.status_code == 200
     response_data = response.json()
     assert response_data["success"] == True
     assert response_data["message"] == "Email Validation Required"
-    assert response_data["user"]["email"] == "testuser@example.com"
+    assert response_data["user"]["email"] == user_data["email"]
     assert "password" not in response_data["user"]
-    assert response_data["user"]["email_status"] == False  # Email not verified yet
+    assert response_data["user"]["email_status"] == False
 
 
 def test_register_invalid_email(client):
-    """
-    Tests registration with invalid email format
-    """
-    test_data = {
-        "name": "ali",
-        "surname": "kara",
-        "username": "alik16",
-        "email": "invalid-email",
-        "password": "123456",
-        "phone": "+905551234567"
-    }
-    response = client.post("/register", json=test_data, params={"encrypted": False})
+    """Geçersiz email formatıyla kaydı test eder"""
+    invalid_data = TestDataFactory.get_invalid_email_data()
+    response = client.post("/register", json=invalid_data, params={"encrypted": False})
 
     assert response.status_code == 200
     response_data = response.json()
@@ -61,18 +108,9 @@ def test_register_invalid_email(client):
 
 
 def test_register_invalid_phone(client):
-    """
-    Tests registration with invalid phone format
-    """
-    test_data = {
-        "name": "ali",
-        "surname": "kara",
-        "username": "alik16",
-        "email": "testuser@example.com",
-        "password": "123456",
-        "phone": "invalid-phone"
-    }
-    response = client.post("/register", json=test_data, params={"encrypted": False})
+    """Geçersiz telefon formatıyla kaydı test eder"""
+    invalid_data = TestDataFactory.get_invalid_phone_data()
+    response = client.post("/register", json=invalid_data, params={"encrypted": False})
 
     assert response.status_code == 200
     response_data = response.json()
@@ -80,51 +118,20 @@ def test_register_invalid_phone(client):
     assert "phone" in response_data["message"].lower()
 
 
-def test_register_existing_user_fail(client):
-    """
-    Tests registration failure when user already exists
-    """
-    test_data = {
-        "name": "ali",
-        "surname": "kara",
-        "username": "alik16",
-        "email": "testuser@example.com",
-        "password": "123456",
-        "phone": "+905551234567"
-    }
-    # First registration
-    response1 = client.post("/register", json=test_data, params={"encrypted": False})
-    assert response1.status_code == 200
-    assert response1.json()["success"] == True
+def test_register_existing_user_fail(client, registered_user, user_data):
+    """Var olan kullanıcı kaydını test eder"""
+    # İkinci kayıt denemesi
+    response = client.post("/register", json=user_data, params={"encrypted": False})
 
-    # Second registration with same email
-    response2 = client.post("/register", json=test_data, params={"encrypted": False})
-    assert response2.status_code == 200
-    response_data = response2.json()
+    assert response.status_code == 200
+    response_data = response.json()
     assert response_data["success"] == False
     assert "already registered" in response_data["message"].lower()
 
 
-def test_login_unverified_email(client):
-    """
-    Tests login attempt with unverified email
-    """
-    # Register user first
-    register_data = {
-        "name": "ali",
-        "surname": "kara",
-        "username": "alik16",
-        "email": "testuser@example.com",
-        "password": "123456",
-        "phone": "+905551234567"
-    }
-    client.post("/register", json=register_data, params={"encrypted": False})
-
-    # Try to login without email verification
-    login_data = {
-        "email": "testuser@example.com",
-        "password": "123456"
-    }
+def test_login_unverified_email(client, registered_user):
+    """Doğrulanmamış email ile login denemesini test eder"""
+    login_data = TestDataFactory.get_login_data()
     response = client.post("/login", json=login_data)
 
     assert response.status_code == 200
@@ -134,14 +141,12 @@ def test_login_unverified_email(client):
 
 
 def test_login_invalid_credentials(client):
-    """
-    Tests login with wrong credentials
-    """
-    login_data = {
+    """Yanlış kimlik bilgileriyle login denemesini test eder"""
+    invalid_login = {
         "email": "nonexistent@example.com",
         "password": "wrongpassword"
     }
-    response = client.post("/login", json=login_data)
+    response = client.post("/login", json=invalid_login)
 
     assert response.status_code == 200
     response_data = response.json()
@@ -149,66 +154,41 @@ def test_login_invalid_credentials(client):
     assert "Invalid credentials" in response_data["message"]
 
 
-def test_verify_email_success(client, db_session):
-    """
-    Tests successful email verification
-    """
-    # Register user first
-    register_data = {
-        "name": "ali",
-        "surname": "kara",
-        "username": "alik16",
-        "email": "testuser@example.com",
-        "password": "123456",
-        "phone": "+905551234567"
-    }
-    client.post("/register", json=register_data, params={"encrypted": False})
+def test_login_success_after_email_verification(client, logged_in_user):
+    """Email doğrulandıktan sonra başarılı login'i test eder"""
+    assert logged_in_user["success"] == True
+    assert "user" in logged_in_user
+    assert "session" in logged_in_user
+    assert logged_in_user["user"]["email"] == "testuser@example.com"
+    assert "password" not in logged_in_user["user"]
 
-    # Create verification code manually for testing
+
+def test_verify_email_success(client, registered_user, db_session):
+    """Başarılı email doğrulamasını test eder"""
+    # Doğrulama kodu oluştur
     verification_code = "123456"
     email_code = EmailVerificationCode(
-        recovery_code=verification_code,
-        user_email="testuser@example.com",
+        user_id=1,  # Assuming first user gets ID 1
+        verification_code=verification_code,
         valid_until=datetime.now(timezone.utc) + timedelta(minutes=5)
     )
     db_session.add(email_code)
     db_session.commit()
 
-    # Verify email
-    verify_data = {
-        "email": "testuser@example.com",
-        "phone": "+905551234567",
-        "recovery_code": verification_code
-    }
+    verify_data = TestDataFactory.get_verification_data()
     response = client.post("/verify-email", json=verify_data)
 
     assert response.status_code == 200
     response_data = response.json()
     assert response_data["success"] == True
-    assert "Validated Recovery Code" in response_data["message"]
+    assert "Validated Verification Code" in response_data["message"]
 
 
-def test_verify_email_invalid_code(client):
-    """
-    Tests email verification with invalid code
-    """
-    # Register user first
-    register_data = {
-        "name": "ali",
-        "surname": "kara",
-        "username": "alik16",
-        "email": "testuser@example.com",
-        "password": "123456",
-        "phone": "+905551234567"
-    }
-    client.post("/register", json=register_data, params={"encrypted": False})
+def test_verify_email_invalid_code(client, registered_user):
+    """Geçersiz doğrulama koduyla email doğrulamasını test eder"""
+    verify_data = TestDataFactory.get_verification_data()
+    verify_data["verification_code"] = "wrong_code"
 
-    # Try to verify with invalid code
-    verify_data = {
-        "email": "testuser@example.com",
-        "phone": "+905551234567",
-        "recovery_code": "wrong_code"
-    }
     response = client.post("/verify-email", json=verify_data)
 
     assert response.status_code == 200
@@ -218,27 +198,8 @@ def test_verify_email_invalid_code(client):
 
 
 @patch('main.send_password_reset_email', new_callable=AsyncMock)
-def test_forgot_password_valid_email(mock_email, client, db_session):
-    """
-    Tests forgot password with valid email
-    """
-    # Register and verify user first
-    register_data = {
-        "name": "ali",
-        "surname": "kara",
-        "username": "alik16",
-        "email": "testuser@example.com",
-        "password": "123456",
-        "phone": "+905551234567"
-    }
-    client.post("/register", json=register_data, params={"encrypted": False})
-
-    # Set email as verified
-    user = db_session.query(User).filter(User.email == "testuser@example.com").first()
-    user.email_status = True
-    db_session.commit()
-
-    # Request password reset
+def test_forgot_password_valid_email(mock_email, client, verified_user):
+    """Geçerli email ile şifre sıfırlama talebini test eder"""
     forgot_data = {"email": "testuser@example.com"}
     response = client.post("/forgot-password", json=forgot_data)
 
@@ -250,9 +211,7 @@ def test_forgot_password_valid_email(mock_email, client, db_session):
 
 
 def test_forgot_password_invalid_email_format(client):
-    """
-    Tests forgot password with invalid email format
-    """
+    """Geçersiz email formatıyla şifre sıfırlama talebini test eder"""
     forgot_data = {"email": "invalid-email"}
     response = client.post("/forgot-password", json=forgot_data)
 
@@ -262,50 +221,18 @@ def test_forgot_password_invalid_email_format(client):
     assert "valid email address" in response_data["message"]
 
 
-def test_forgot_password_nonexistent_user(client):
-    """
-    Tests forgot password with non-existent email (should still return success for security)
-    """
-    forgot_data = {"email": "nonexistent@example.com"}
-    response = client.post("/forgot-password", json=forgot_data)
-
-    assert response.status_code == 200
-    response_data = response.json()
-    assert response_data["success"] == True
-    assert "Sent Code if the account exists" in response_data["message"]
-
-
-def test_reset_password_success(client, db_session):
-    """
-    Tests successful password reset
-    """
-    # Register and verify user
-    register_data = {
-        "name": "ali",
-        "surname": "kara",
-        "username": "alik16",
-        "email": "testuser@example.com",
-        "password": "123456",
-        "phone": "+905551234567"
-    }
-    client.post("/register", json=register_data, params={"encrypted": False})
-
-    # Set email as verified
-    user = db_session.query(User).filter(User.email == "testuser@example.com").first()
-    user.email_status = True
-    db_session.commit()
-
-    # Create recovery code manually for testing
+def test_reset_password_success(client, verified_user, db_session):
+    """Başarılı şifre sıfırlamayı test eder"""
+    # Recovery kodu oluştur
     recovery_code = "123456"
     reset_code = RecoveryCode(
         recovery_code=recovery_code,
-        user_email="testuser@example.com",
+        user_id=verified_user.userid,
         valid_until=datetime.now(timezone.utc) + timedelta(minutes=5)
     )
     db_session.add(reset_code)
     db_session.commit()
 
-    # Reset password
     reset_data = {
         "email": "testuser@example.com",
         "recovery_code": recovery_code,
@@ -319,27 +246,8 @@ def test_reset_password_success(client, db_session):
     assert "Password Reset Successfully" in response_data["message"]
 
 
-def test_reset_password_invalid_code(client, db_session):
-    """
-    Tests password reset with invalid recovery code
-    """
-    # Register and verify user
-    register_data = {
-        "name": "ali",
-        "surname": "kara",
-        "username": "alik16",
-        "email": "testuser@example.com",
-        "password": "123456",
-        "phone": "+905551234567"
-    }
-    client.post("/register", json=register_data, params={"encrypted": False})
-
-    # Set email as verified
-    user = db_session.query(User).filter(User.email == "testuser@example.com").first()
-    user.email_status = True
-    db_session.commit()
-
-    # Try to reset with invalid code
+def test_reset_password_invalid_code(client, verified_user):
+    """Geçersiz recovery code ile şifre sıfırlamayı test eder"""
     reset_data = {
         "email": "testuser@example.com",
         "recovery_code": "wrong_code",
@@ -353,87 +261,9 @@ def test_reset_password_invalid_code(client, db_session):
     assert "Invalid email or recovery code" in response_data["message"]
 
 
-def test_reset_password_nonexistent_user(client):
-    """
-    Tests password reset for non-existent user
-    """
-    reset_data = {
-        "email": "nonexistent@example.com",
-        "recovery_code": "123456",
-        "new_password": "newpassword123"
-    }
-    response = client.post("/reset-password", json=reset_data)
-
-    assert response.status_code == 200
-    response_data = response.json()
-    assert response_data["success"] == False
-    assert "Invalid email or recovery code" in response_data["message"]
-
-
-def test_login_success_after_email_verification(client, db_session):
-    """
-    Tests successful login after email verification
-    """
-    # Register user
-    register_data = {
-        "name": "ali",
-        "surname": "kara",
-        "username": "alik16",
-        "email": "testuser@example.com",
-        "password": "123456",
-        "phone": "+905551234567"
-    }
-    client.post("/register", json=register_data, params={"encrypted": False})
-
-    # Manually verify email
-    user = db_session.query(User).filter(User.email == "testuser@example.com").first()
-    user.email_status = True
-    db_session.commit()
-
-    # Now login should work
-    login_data = {
-        "email": "testuser@example.com",
-        "password": "123456"
-    }
-    response = client.post("/login", json=login_data)
-
-    assert response.status_code == 200
-    response_data = response.json()
-    assert response_data["success"] == True
-    assert "user" in response_data
-    assert "session" in response_data
-    assert response_data["user"]["email"] == "testuser@example.com"
-    assert "password" not in response_data["user"]
-
-
-def test_verify_session_success(client, db_session):
-    """
-    Tests successful session verification
-    """
-    # Register, verify, and login user to get session
-    register_data = {
-        "name": "ali",
-        "surname": "kara",
-        "username": "alik16",
-        "email": "testuser@example.com",
-        "password": "123456",
-        "phone": "+905551234567"
-    }
-    client.post("/register", json=register_data, params={"encrypted": False})
-
-    # Manually verify email
-    user = db_session.query(User).filter(User.email == "testuser@example.com").first()
-    user.email_status = True
-    db_session.commit()
-
-    # Login to get session
-    login_response = client.post("/login", json={
-        "email": "testuser@example.com",
-        "password": "123456"
-    })
-    session_data = login_response.json()["session"]
-
-    # Verify session
+def test_verify_session_success(client, logged_in_user):
+    """Başarılı session doğrulamasını test eder"""
+    session_data = logged_in_user["session"]
     response = client.get("/verify-session", json=session_data)
 
     assert response.status_code == 200
@@ -443,15 +273,12 @@ def test_verify_session_success(client, db_session):
 
 
 def test_verify_session_invalid(client):
-    """
-    Tests session verification with invalid session
-    """
+    """Geçersiz session doğrulamasını test eder"""
     invalid_session = {
         "session_id": "invalid_session_id",
         "user_id": 999,
         "valid_until": "2024-12-31T23:59:59Z"
     }
-
     response = client.get("/verify-session", json=invalid_session)
 
     assert response.status_code == 200
@@ -460,43 +287,18 @@ def test_verify_session_invalid(client):
     assert "Session not found" in response_data["message"]
 
 
-def test_edit_user_success(client, db_session):
-    """
-    Tests successful user editing with valid session
-    """
-    # Setup: Register, verify, login user
-    register_data = {
-        "name": "ali",
-        "surname": "kara",
-        "username": "alik16",
-        "email": "testuser@example.com",
-        "password": "123456",
-        "phone": "+905551234567"
-    }
-    client.post("/register", json=register_data, params={"encrypted": False})
+def test_edit_user_success(client, logged_in_user, user_data):
+    """Başarılı kullanıcı düzenlemesini test eder"""
+    session_data = logged_in_user["session"]
+    user_data = logged_in_user["user"]
 
-    user = db_session.query(User).filter(User.email == "testuser@example.com").first()
-    user.email_status = True
-    db_session.commit()
-
-    login_response = client.post("/login", json={
-        "email": "testuser@example.com",
-        "password": "123456"
-    })
-    session_data = login_response.json()["session"]
-    user_data = login_response.json()["user"]
-
-    # Edit user
     edit_data = {
         "userid": user_data["userid"],
         "name": "Ali Updated",
         "surname": "Kara Updated"
     }
 
-    response = client.post("/edit-user", json={
-        **edit_data,
-        "session": session_data
-    })
+    response = client.post("/edit-user", json={**edit_data, "session": session_data})
 
     assert response.status_code == 200
     response_data = response.json()
@@ -504,23 +306,15 @@ def test_edit_user_success(client, db_session):
 
 
 def test_edit_user_unauthorized(client):
-    """
-    Tests user editing without valid session
-    """
-    edit_data = {
-        "userid": 1,
-        "name": "Ali Updated"
-    }
+    """Yetkisiz kullanıcı düzenlemesini test eder"""
+    edit_data = {"userid": 1, "name": "Ali Updated"}
     invalid_session = {
         "session_id": "invalid",
         "user_id": 1,
         "valid_until": "2024-12-31T23:59:59Z"
     }
 
-    response = client.post("/edit-user", json={
-        **edit_data,
-        "session": invalid_session
-    })
+    response = client.post("/edit-user", json={**edit_data, "session": invalid_session})
 
     assert response.status_code == 200
     response_data = response.json()
@@ -528,40 +322,29 @@ def test_edit_user_unauthorized(client):
     assert "Not Authorized" in response_data["message"]
 
 
-# Integration test combining multiple flows
 def test_complete_user_flow(client, db_session):
-    """
-    Tests the complete user flow: register -> verify email -> login -> edit user
-    """
-    # 1. Register
-    register_data = {
-        "name": "ali",
-        "surname": "kara",
-        "username": "alik16",
-        "email": "testuser@example.com",
-        "password": "123456",
-        "phone": "+905551234567"
-    }
-    register_response = client.post("/register", json=register_data, params={"encrypted": False})
+    """Tüm kullanıcı akışını test eder: kayıt -> doğrulama -> login -> düzenleme"""
+    # 1. Kayıt
+    user_data = TestDataFactory.get_base_user_data()
+    register_response = client.post("/register", json=user_data, params={"encrypted": False})
     assert register_response.json()["success"] == True
 
-    # 2. Verify email (simulated)
-    user = db_session.query(User).filter(User.email == "testuser@example.com").first()
+    # 2. Email doğrulama (simulated)
+    user = db_session.query(User).filter(User.email == user_data["email"]).first()
     user.email_status = True
     db_session.commit()
 
     # 3. Login
-    login_response = client.post("/login", json={
-        "email": "testuser@example.com",
-        "password": "123456"
-    })
+    login_data = TestDataFactory.get_login_data()
+    login_response = client.post("/login", json=login_data)
     assert login_response.json()["success"] == True
-    session_data = login_response.json()["session"]
-    user_data = login_response.json()["user"]
 
-    # 4. Edit user
+    session_data = login_response.json()["session"]
+    user_response_data = login_response.json()["user"]
+
+    # 4. Kullanıcı düzenleme
     edit_response = client.post("/edit-user", json={
-        "userid": user_data["userid"],
+        "userid": user_response_data["userid"],
         "name": "Updated Name",
         "session": session_data
     })

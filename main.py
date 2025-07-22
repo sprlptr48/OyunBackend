@@ -111,11 +111,12 @@ async def login(user: UserLogin, db: Session = Depends(get_db)):
     returnUser = ReturnUser.model_validate(foundUser) # Convert to return value, which removes password
     return {"success": True, "user": returnUser, "session": session}
 
-""" Gelen kullanıcı verisine göre düzenleme yapar.
-    userid ve password bulunmalıdır.
-"""
+
 @app.post("/edit-user", status_code=200)
 async def edit_user_endpoint(user: UserUpdate, session: SessionSchema,  db: Session = Depends(get_db)):
+    """ Gelen kullanıcı verisine göre düzenleme yapar.
+        userid ve Session bulunmalıdır.
+    """
     db_session = get_session(db, session.session_id)
     if db_session is None: # session yoksa
         return {"success": False, "message": "Not Authorized"}
@@ -125,10 +126,13 @@ async def edit_user_endpoint(user: UserUpdate, session: SessionSchema,  db: Sess
         return {"success": False, "message": "Not Authorized"}
     if user.password:
         user.password = hash_password(user.password)
+    user_to_edit = get_user_by_id(db, user.userid)
+    if user_to_edit is None: return {"success": False, "message": "Not Authorized"}
     edited = edit_user(db, user.userid, user)
+    if edited is None: return {"success": False, "message": "Server Error"}
     db.commit()
-    if edited is None: return {"success": False, "message": "Invalid credentials"}
-    return {"success": True}
+    edited_return = ReturnUser.model_validate(edited)
+    return {"success": True, "user": edited_return}
 
 
 @app.get("/verify-session")
@@ -163,7 +167,7 @@ async def forgot_password(user_data: ForgotPasswordSchema, db: Session = Depends
 @app.post("/reset-password", status_code=200)
 async def reset_password_endpoint(data: ResetPasswordSchema, db: Session = Depends(get_db)):
     blank_user = User(email=data.email)
-    blank_user = get_user_by_login(db, blank_user)
+    blank_user = get_user_by_login(db, blank_user) #DB'den kullanıcı verisini getir.
     if blank_user is None: return {"success": False, "message": "Invalid email or recovery code."}
     if blank_user.email != data.email: return {"success": False, "message": "Invalid email or recovery code."}
     hashed_password = hash_password(data.new_password)

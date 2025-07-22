@@ -32,6 +32,7 @@ def normalize_phone(phone: str) -> str:
 
 
 def validate_session(session: SessionSchema) -> bool:
+    """Session verisi hala geçerli mi, süresi bitti mi?"""
     valid_until = session.valid_until
     if valid_until.tzinfo is None:
         valid_until = valid_until.replace(tzinfo=timezone.utc)

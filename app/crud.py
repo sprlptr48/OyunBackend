@@ -27,7 +27,7 @@ def get_user_by_login(db: Session, user_data: User):
 def get_user_by_id(db: Session, userid: int):
     return db.query(User).filter(User.userid == userid).first()
 
-def edit_user(db: Session, user_id: int, user_update_data: UserUpdate):
+def edit_user(db: Session, user_id: int, user_update_data: UserUpdate) -> User | None:
     """
     Updates a user in the database with the provided data.
     """
