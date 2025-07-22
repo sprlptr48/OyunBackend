@@ -24,14 +24,16 @@ class SessionModel(Base):
 
 class RecoveryCode(Base):
     __tablename__ = 'recovery_code'
-    recovery_code = Column(String(6), primary_key=True)
-    user_email = Column(String(40), nullable=False, index=True)
+    id = Column(Integer, primary_key=True, autoincrement=True)
+    recovery_code = Column(String(6), unique=True)
+    user_id = Column(Integer, ForeignKey('users.userid'), nullable=False, index=True) # from user_email to user_id
     valid_until = Column(DateTime(timezone=True))
 
 class EmailVerificationCode(Base):
     __tablename__ = 'email_verification_code'
-    verification_code = Column(String(6), primary_key=True)
-    user_email = Column(String(40), nullable=False, index=True)
+    id = Column(Integer, primary_key=True, autoincrement=True)
+    verification_code = Column(String(6), unique=True)
+    user_id = Column(Integer, ForeignKey('users.userid'), nullable=False, index=True) # from user_email to user_id
     valid_until = Column(DateTime(timezone=True))
 
 def schema_to_model(schema_instance, model_class):

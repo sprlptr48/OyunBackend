@@ -17,8 +17,8 @@ class EmailRequest(BaseModel):
     text_body: str | None = None
     from_email: str = MAIL_FROM #Postmark'ta kayıtlı adres
 
-async def send_email(subject: str, recipient: str, body: str):
-    postmark.emails.send(
+def send_email(subject: str, recipient: str, body: str):
+    return postmark.emails.send(
         From=MAIL_FROM,
         To=recipient,
         Subject=subject,
@@ -26,16 +26,16 @@ async def send_email(subject: str, recipient: str, body: str):
     )
 
 
-async def send_verification_email(email_to: str, verification_code: str):
+def send_verification_email(email_to: str, verification_code: str):
     subject = "Lütfen Email Adresinizi Doğrulayın"
     body = f"""
     <p>Merhaba,</p>
     <p>Hesabınızı doğrulamak için lütfen aşağıdaki kodu yazın:</p>
     <a href="{verification_code}">{verification_code}</a>
     """
-    await send_email(subject, email_to, body)
+    return send_email(subject, email_to, body)
 
-async def send_password_reset_email(email_to: str, reset_code: str):
+def send_password_reset_email(email_to: str, reset_code: str):
     subject = "Şifre Sıfırlama İsteği"
     body = f"""
     <p>Merhaba,</p>
@@ -45,4 +45,4 @@ async def send_password_reset_email(email_to: str, reset_code: str):
     <p>İyi günler dileriz,</p>
     <p>ŞİRKET ADI</p>
     """
-    await send_email(subject, email_to, body)
+    return send_email(subject, email_to, body)

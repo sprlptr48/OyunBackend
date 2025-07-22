@@ -11,9 +11,7 @@ from app.models import User, SessionModel, schema_to_model, RecoveryCode, EmailV
 from app.schemas import UserCreate, UserLogin, SessionSchema, RegisterResponse, ReturnUser, UserUpdate, \
     ForgotPasswordSchema, ResetPasswordSchema, VerifyEmailSchema
 from app.security import generate_session_id, hash_password, verify_password, verification_code
-from app.crud import create_user, save_session, get_user_by_login, get_session, edit_user, save_recovery_code, \
-    update_user_password, validate_recovery_code, validate_email_verification_code, edit_email_status, \
-    save_email_verification_code
+from app.crud import *
 from app.database import get_db, Base, engine
 from app.utils import validate_session, verify_email_format, verify_phone_format, normalize_phone
 
@@ -49,21 +47,12 @@ async def register(new_user: UserCreate, encrypted: bool, db: Session = Depends(
             return {"success": False, "message": "Please enter a valid phone number"}
     if not encrypted:
         new_user.password = hash_password(new_user.password)
-
     user: User = User(**(new_user.model_dump()), user_status="open") # Gelen UserCreate schema User Model yapılır
-    #session_id = generate_session_id()
-    #session = SessionSchema(session_id=session_id,
-    #                        user_id=-1, valid_until=datetime.now(timezone.utc) + timedelta(days=1))
-    #sessionModel = schema_to_model(session, SessionModel)  # Convert to model for DB operations
-
     try:
         created_user = create_user(db, user)
         db.flush()
-        #sessionModel.user_id = created_user.userid
-        #saved_session = save_session(db, sessionModel)
         db.commit()
         db.refresh(created_user)
-        #db.refresh(saved_session)
     except IntegrityError as e:
         print(e)
         db.rollback()
@@ -83,10 +72,10 @@ async def register(new_user: UserCreate, encrypted: bool, db: Session = Depends(
     # Email Doğrulama kodu oluştur ve kaydet
     try:
         email_code = verification_code()
-        code = EmailVerificationCode(user_email=user.email, verification_code=email_code,
+        code = EmailVerificationCode(user_id=created_user.userid, verification_code=email_code,
                                      valid_until=datetime.now(timezone.utc) + timedelta(hours=1))
         save_email_verification_code(db, code)
-        await send_verification_email(user.email, email_code)
+        send_verification_email(user.email, email_code)
         db.commit()
         db.refresh(code)
     except Exception as e:
@@ -145,11 +134,6 @@ async def edit_user_endpoint(user: UserUpdate, session: SessionSchema,  db: Sess
 @app.get("/verify-session")
 async def verify_session_endpoint(session: SessionSchema, db: Session = Depends(get_db)):
     db_session = get_session(db, session.session_id)
-   # print("DB valid_until:", db_session.valid_until)
-    #print("Now:", datetime.now(timezone.utc))
-    #print("TZ info:", db_session.valid_until.tzinfo)
-    print(db_session.user_id)
-    print(session)
     if db_session is None:
         return {"success": False, "message": "Session not found"}
     session_new = SessionSchema.model_validate(db_session)
@@ -169,12 +153,12 @@ async def forgot_password(user_data: ForgotPasswordSchema, db: Session = Depends
     if blank_user is None: return {"success": True, "message": "Sent Code if the account exists"}
     code = verification_code()
     valid_until = datetime.now(timezone.utc) + timedelta(minutes=5)
-    saved_code = RecoveryCode(recovery_code=code, user_email=user_data.email, valid_until=valid_until)
+    saved_code = RecoveryCode(recovery_code=code, user_id=blank_user.userid, valid_until=valid_until)
     saved_code = save_recovery_code(db, saved_code)
     db.commit()
-    await send_password_reset_email(blank_user.email, code)
+    send_password_reset_email(blank_user.email, code)
 
-    return {"success": True, "message": "Sent Code if the account exists", code: saved_code}
+    return {"success": True, "message": "Sent Code if the account exists"}
 """Şifre Değiştirme isteği """
 @app.post("/reset-password", status_code=200)
 async def reset_password_endpoint(data: ResetPasswordSchema, db: Session = Depends(get_db)):
@@ -184,10 +168,10 @@ async def reset_password_endpoint(data: ResetPasswordSchema, db: Session = Depen
     if blank_user.email != data.email: return {"success": False, "message": "Invalid email or recovery code."}
     hashed_password = hash_password(data.new_password)
     blank_user.password = hashed_password
-    if not validate_recovery_code(db, data.email, data.recovery_code):
+    if not validate_recovery_code(db, blank_user.userid, data.recovery_code):
         return {"success": False, "message": "Invalid email or recovery code."}
 
-    edited = update_user_password(db, blank_user.userid, blank_user)
+    edited = update_user_password(db, blank_user.userid, blank_user.password)
     if edited is None: return {"success": False, "message": "Invalid email or recovery code."}
     return {"success": True, "message": "Password Reset Successfully."}
 
@@ -198,9 +182,9 @@ async def verify_email_endpoint(login_data: VerifyEmailSchema, db: Session = Dep
     new_user = User(email=login_data.email, phone=login_data.phone)
     new_user = get_user_by_login(db, new_user)
     if new_user is None: return {"success": False, "message": "Invalid credentials"}
-    validation_result = validate_email_verification_code(db, new_user.email, login_data.verification_code)
+    validation_result = validate_email_verification_code(db, new_user.userid, login_data.verification_code)
     if not validation_result:
         return {"success": False, "message": "Invalid credentials"}
-    edit_email_status(db, new_user.email, True)
+    edit_email_status(db, new_user.userid, True)
     return {"success": True, "message": "Validated Verification Code", "code": login_data.verification_code}
 
