@@ -40,3 +40,25 @@ def client(db_session):
     if hasattr(app, 'dependency_overrides'):
         app.dependency_overrides.clear()
     app.dependency_overrides.clear()
+
+
+@pytest.fixture(autouse=True)
+def mock_email_sending(monkeypatch):
+    """
+    Tüm testler boyunca e-posta gönderimini otomatik olarak devre dışı bırakır.
+
+    Bu fixture, 'app.email.send_email' fonksiyonunu, hiçbir şey yapmayan
+    ve hiçbir değer döndürmeyen sahte bir fonksiyonla değiştirir.
+    `autouse=True` sayesinde her testten önce otomatik olarak çalışır.
+    """
+
+    def fake_send_email(subject: str, recipient: str, body: str):
+        print(f"--- MOCK EMAIL ---")
+        print(f"To: {recipient}")
+        print(f"Subject: {subject}")
+        print(f"Body: {body[:50]}...")
+        print(f"------------------")
+        pass
+
+    #gerçek send_email fonksiyonunu değiştir.
+    monkeypatch.setattr("app.email.send_email", fake_send_email)

@@ -36,15 +36,11 @@ async def root():
 """
 @app.post("/register", response_model=RegisterResponse)
 async def register(new_user: UserCreate, encrypted: bool, db: Session = Depends(get_db)):
-    email_success = verify_email_format(new_user.email)
-    if email_success is False:
+    if not verify_email_format(new_user.email):
         return {"success": False, "message": "Please enter a correct email"}
-    phone_success = verify_phone_format(new_user.phone)
-    if phone_success is False:
-        new_phone = normalize_phone(new_user.phone)
-        phone_success = verify_phone_format(new_phone)
-        if phone_success is False:
-            return {"success": False, "message": "Please enter a valid phone number"}
+    new_user.phone = normalize_phone(new_user.phone)
+    if not verify_phone_format(new_user.phone):
+        return {"success": False, "message": "Please enter a valid phone number"}
     if not encrypted:
         new_user.password = hash_password(new_user.password)
     user: User = User(**(new_user.model_dump()), user_status="open") # Gelen UserCreate schema User Model yapılır
