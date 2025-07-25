@@ -1,4 +1,4 @@
-from datetime import datetime, timedelta, timezone
+from datetime import datetime, timezone
 
 
 from .models import *
@@ -24,23 +24,19 @@ def get_user_by_login(db: Session, user_data: User):
         return query.filter(User.phone == user_data.phone).first()
     return None
 
-def get_user_by_id(db: Session, userid: int):
+def get_user_by_id(db: Session, userid: int) -> User | None:
     return db.query(User).filter(User.userid == userid).first()
 
-def edit_user(db: Session, user_id: int, user_update_data: UserUpdate) -> User | None:
-    """
-    Updates a user in the database with the provided data.
-    """
+
+def update_user(db: Session, user_id: int, user_update_data: UserUpdate) -> User | None:
     db_user = get_user_by_id(db, user_id)
     if db_user is None:
         return None
+    
     update_data = user_update_data.model_dump(exclude_unset=True)
 
     for key, value in update_data.items():
         setattr(db_user, key, value)
-
-    db.add(db_user)
-    db.refresh(db_user)
 
     return db_user
 
@@ -48,7 +44,6 @@ def update_user_password(db: Session, user_id: int, password: str):
     db_user = db.query(User).filter(User.userid == user_id).first()
     if db_user:
         db_user.password = password
-        db.add(db_user)
         db.commit()
         db.refresh(db_user)
     return db_user
@@ -61,7 +56,7 @@ def save_session(db: Session, session: SessionModel) -> SessionModel:
 """
     Session getir
 """
-def get_session(db: Session, session_id: str):
+def get_session(db: Session, session_id: str) -> SessionModel | None:
     return db.query(SessionModel).filter(SessionModel.session_id == session_id).first()
 
 def edit_email_status(db: Session, user_id: int, status: bool):

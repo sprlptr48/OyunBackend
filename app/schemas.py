@@ -27,6 +27,10 @@ class UserLogin(BaseModel):
     phone: str | None = None
     password: str
 
+class UserLogoutSchema(BaseModel):
+    session_id: str
+    user_id: int
+
 class ForgotPasswordSchema(BaseModel):
     email: str | None = None
     phone: str | None = None
