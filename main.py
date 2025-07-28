@@ -1,19 +1,14 @@
 from contextlib import asynccontextmanager
-from datetime import datetime, timedelta, timezone
 
 from fastapi import FastAPI, HTTPException, Depends
-from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session
 
 from app import models, service
-from app.email import send_password_reset_email, send_verification_email
 from app.models import User, SessionModel, schema_to_model, RecoveryCode, EmailVerificationCode
 from app.schemas import UserCreate, UserLogin, SessionSchema, RegisterResponse, ReturnUser, UserUpdate, \
     ForgotPasswordSchema, ResetPasswordSchema, VerifyEmailSchema, UserLogoutSchema
-from app.security import generate_session_id, hash_password, verify_password, verification_code
 from app.crud import *
 from app.database import get_db, Base, engine
-from app.utils import validate_session, verify_email_format, verify_phone_format, normalize_phone
 
 
 @asynccontextmanager
