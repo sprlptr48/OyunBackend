@@ -1,7 +1,9 @@
 from contextlib import asynccontextmanager
 
 from fastapi import FastAPI, HTTPException, Depends
+from slowapi.middleware import SlowAPIMiddleware
 from sqlalchemy.orm import Session
+from starlette.requests import Request
 
 from app import models, service
 from app.models import User, SessionModel, schema_to_model, RecoveryCode, EmailVerificationCode
@@ -9,7 +11,7 @@ from app.schemas import UserCreate, UserLogin, SessionSchema, RegisterResponse, 
     ForgotPasswordSchema, ResetPasswordSchema, VerifyEmailSchema, UserLogoutSchema
 from app.crud import *
 from app.database import get_db, Base, engine
-
+from app.limiter import limiter
 
 @asynccontextmanager
 async def lifespan(app_instance: FastAPI):
@@ -17,6 +19,9 @@ async def lifespan(app_instance: FastAPI):
     yield
 
 app = FastAPI(lifespan=lifespan)
+
+app.state.limiter = limiter
+app.add_middleware(SlowAPIMiddleware)
 
 
 @app.get("/")
@@ -65,8 +70,8 @@ async def reset_password_endpoint(data: ResetPasswordSchema, db: Session = Depen
     return service.reset_password(data=data, db=db)
 
 
-
 @app.post("/verify-email", status_code=200)
-async def verify_email_endpoint(login_data: VerifyEmailSchema, db: Session = Depends(get_db)):
+@limiter.limit("15/15 minutes")
+async def verify_email_endpoint(request: Request, login_data: VerifyEmailSchema, db: Session = Depends(get_db)):
     return service.verify_email(login_data, db)
 
