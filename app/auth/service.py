@@ -21,6 +21,7 @@ def register(new_user: UserCreate, encrypted: bool, db: Session):
     user: User = User(**(new_user.model_dump()), user_status="open") # Gelen UserCreate schema User Model yapılır
     try:
         created_user = create_user(db, user)
+        user.email_status = True
         db.flush()
         db.commit()
         db.refresh(created_user)
