@@ -1,10 +1,10 @@
 from datetime import datetime, timezone
 
 
-from .models import *
+from app.auth.models import *
 from sqlalchemy.orm import Session
 
-from .schemas import UserUpdate
+from app.auth.schemas import UserUpdate
 
 
 # Kullanıcı oluştur, commit kısmı daha sonra yapılmalı

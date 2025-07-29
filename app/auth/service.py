@@ -1,19 +1,13 @@
-from contextlib import asynccontextmanager
-from datetime import datetime, timedelta, timezone
+from datetime import timedelta
 
-from fastapi import FastAPI, HTTPException, Depends
+from fastapi import HTTPException
 from sqlalchemy.exc import IntegrityError, SQLAlchemyError
-from sqlalchemy.orm import Session
 
-from app import models
-from app.email import send_password_reset_email, send_verification_email
-from app.models import User, SessionModel, schema_to_model, RecoveryCode, EmailVerificationCode
-from app.schemas import UserCreate, UserLogin, SessionSchema, RegisterResponse, ReturnUser, UserUpdate, \
-    ForgotPasswordSchema, ResetPasswordSchema, VerifyEmailSchema, UserLogoutSchema
-from app.security import generate_session_id, hash_password, verify_password, verification_code
-from app.crud import *
-from app.database import get_db, Base, engine
-from app.utils import validate_session, verify_email_format, verify_phone_format, normalize_phone
+from app.auth.email import send_password_reset_email, send_verification_email
+from app.auth.schemas import UserCreate, UserLogin, SessionSchema, ReturnUser, ForgotPasswordSchema, ResetPasswordSchema, VerifyEmailSchema, UserLogoutSchema
+from app.auth.security import generate_session_id, hash_password, verify_password, verification_code
+from app.auth.crud import *
+from app.auth.utils import validate_session, verify_email_format, verify_phone_format, normalize_phone
 
 
 def register(new_user: UserCreate, encrypted: bool, db: Session):
@@ -157,7 +151,7 @@ def verify_email(login_data: VerifyEmailSchema, db: Session):
 
 async def logout(user_data: UserLogoutSchema, db: Session):
     db_session = get_session(db, user_data.session_id)
-    if db_session is None or db_session.user_id != user_data.userid:
+    if db_session is None or db_session.user_id != user_data.user_id:
         return {"success": False, "message": "Session does not exist"}
     try:
         db.delete(db_session)

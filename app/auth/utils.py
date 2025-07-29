@@ -1,7 +1,7 @@
 # app/utils/session.py
 import re
 from datetime import datetime, timezone
-from app.schemas import SessionSchema
+from app.auth.schemas import SessionSchema
 
 
 def verify_email_format(email: str):

@@ -1,8 +1,6 @@
 from datetime import datetime
 from pydantic import ConfigDict, BaseModel
 
-from app.models import SessionModel
-
 
 class SessionSchema(BaseModel):
     session_id: str

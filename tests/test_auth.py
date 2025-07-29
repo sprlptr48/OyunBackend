@@ -1,6 +1,6 @@
 import pytest
-from app.models import User, RecoveryCode, EmailVerificationCode
-from datetime import datetime, timezone, timedelta
+from app.auth.models import User
+
 
 class TestDataFactory:
     @staticmethod

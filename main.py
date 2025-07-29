@@ -1,17 +1,13 @@
 from contextlib import asynccontextmanager
 
-from fastapi import FastAPI, HTTPException, Depends
+from fastapi import FastAPI
 from slowapi.middleware import SlowAPIMiddleware
-from sqlalchemy.orm import Session
-from starlette.requests import Request
+from uvicorn.middleware.proxy_headers import ProxyHeadersMiddleware
 
-from app import models, service
-from app.models import User, SessionModel, schema_to_model, RecoveryCode, EmailVerificationCode
-from app.schemas import UserCreate, UserLogin, SessionSchema, RegisterResponse, ReturnUser, UserUpdate, \
-    ForgotPasswordSchema, ResetPasswordSchema, VerifyEmailSchema, UserLogoutSchema
-from app.crud import *
-from app.database import get_db, Base, engine
-from app.limiter import limiter
+from app.core.database import engine, Base
+from app.auth.routes import auth_router
+from app.core.limiter import limiter
+
 
 @asynccontextmanager
 async def lifespan(app_instance: FastAPI):
@@ -20,58 +16,9 @@ async def lifespan(app_instance: FastAPI):
 
 app = FastAPI(lifespan=lifespan)
 
+app.include_router(auth_router)
+
 app.state.limiter = limiter
+
+app.add_middleware(ProxyHeadersMiddleware, trusted_hosts="*")
 app.add_middleware(SlowAPIMiddleware)
-
-
-@app.get("/")
-async def root():
-    return {"success": True, "message": "API working"}
-
-
-""" Takes user info as input: name, surname, username, email, password, phone(optional)
-    and uses the encrypted param to handle the password.
-    returns UserInfo and Session Objects.
-    UserInfo: 
-"""
-@app.post("/register", response_model=RegisterResponse)
-def register(new_user: UserCreate, encrypted: bool, db: Session = Depends(get_db)):
-    return service.register(new_user=new_user, encrypted=encrypted, db=db)
-
-
-@app.post("/login", response_model=RegisterResponse, status_code=200)
-async def login_endpoint(user: UserLogin, db: Session = Depends(get_db)):
-    return service.login(user=user, db=db)
-
-
-@app.post("/logout", response_model=RegisterResponse, status_code=200)
-async def logout_endpoint(user: UserLogoutSchema, db: Session = Depends(get_db)):
-    print("logged out")
-    return await service.logout(user_data=user, db=db)
-
-
-@app.post("/edit-user", status_code=200)
-async def edit_user_endpoint(user: UserUpdate, session: SessionSchema,  db: Session = Depends(get_db)):
-    return service.edit_user(user=user, session=session, db=db)
-
-
-@app.get("/verify-session")
-async def verify_session_endpoint(session: SessionSchema, db: Session = Depends(get_db)):
-    return service.verify_session(session, db)
-
-"""Şifremi Unuttum isteği"""
-@app.post("/forgot-password", status_code=200)
-async def forgot_password_endpoint(user_data: ForgotPasswordSchema, db: Session = Depends(get_db)):
-    return service.forgot_password(user_data=user_data, db=db)
-
-"""Şifre Değiştirme isteği """
-@app.post("/reset-password", status_code=200)
-async def reset_password_endpoint(data: ResetPasswordSchema, db: Session = Depends(get_db)):
-    return service.reset_password(data=data, db=db)
-
-
-@app.post("/verify-email", status_code=200)
-@limiter.limit("15/15 minutes")
-async def verify_email_endpoint(request: Request, login_data: VerifyEmailSchema, db: Session = Depends(get_db)):
-    return service.verify_email(login_data, db)
-
