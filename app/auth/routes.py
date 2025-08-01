@@ -1,3 +1,5 @@
+import logging
+
 from fastapi import FastAPI, Depends, APIRouter
 from starlette.requests import Request
 
@@ -7,6 +9,8 @@ from app.auth.crud import *
 from app.core.database import get_db, Base, engine
 from app.core.limiter import limiter
 
+
+logger = logging.getLogger('uvicorn.error')
 auth_router = APIRouter(prefix="/auth", tags=["Auth"])
 
 
@@ -22,7 +26,10 @@ async def root():
 """
 @auth_router.post("/register", response_model=RegisterResponse)
 def register(new_user: UserCreate, encrypted: bool, db: Session = Depends(get_db)):
-    return service.register(new_user=new_user, encrypted=encrypted, db=db)
+
+    result = service.register(new_user=new_user, encrypted=encrypted, db=db)
+    logger.info(result)
+    return result
 
 
 @auth_router.post("/login", response_model=RegisterResponse, status_code=200)
