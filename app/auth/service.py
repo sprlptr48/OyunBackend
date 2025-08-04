@@ -1,13 +1,15 @@
 from datetime import timedelta
 
-from fastapi import HTTPException
+from fastapi import HTTPException, Depends, Header
 from sqlalchemy.exc import IntegrityError, SQLAlchemyError
+from starlette import status
 
 from app.auth.email import send_password_reset_email, send_verification_email
 from app.auth.schemas import UserCreate, UserLogin, SessionSchema, ReturnUser, ForgotPasswordSchema, ResetPasswordSchema, VerifyEmailSchema, UserLogoutSchema
 from app.auth.security import generate_session_id, hash_password, verify_password, verification_code
 from app.auth.crud import *
 from app.auth.utils import validate_session, verify_email_format, verify_phone_format, normalize_phone
+from app.core.database import get_db
 
 
 def register(new_user: UserCreate, encrypted: bool, db: Session):
@@ -162,3 +164,56 @@ async def logout(user_data: UserLogoutSchema, db: Session):
         print(e)
         return {"success": False, "message": "Internal Server Error"}
     return {"success": True, "message": "Successfully logged out"}
+
+
+def delete_user(user: User, session: str,  db: Session):
+    db_session = get_session(db, session)
+    if db_session is None: # session yoksa
+        return {"success": False, "message": "Not Authorized"}
+    elif db_session.user_id != user.userid: # session, düzenlemeyi yapandan başkasına aitse
+        return {"success": False, "message": "Not Authorized"}
+    elif db_session.valid_until < datetime.now(timezone.utc):
+        return {"success": False, "message": "Not Authorized"}
+
+    db.delete(user)
+    db.commit()
+    #edit edited_return = ReturnUser.model_validate(edited)
+    return {"success": True, "message": "User deleted"}
+
+
+def get_current_user(authorization: str = Header(...), db: Session = Depends(get_db)) -> User:
+    if authorization is None:
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="Authorization header is missing",
+            headers={"WWW-Authenticate": "Bearer"},
+        )
+
+    try:
+        scheme, session_token = authorization.split()
+        if scheme.lower() != "bearer":
+            raise ValueError
+    except ValueError:
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="Invalid authorization scheme. Must be 'Bearer'.",
+            headers={"WWW-Authenticate": "Bearer"},
+        )
+    db_session = get_session(db, session_token)
+
+    if not db_session or not db_session.valid_until < datetime.now(timezone.utc):
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="Invalid or expired session token",
+            headers={"WWW-Authenticate": "Bearer"},
+        )
+
+    user = get_user_by_id(db, db_session.user_id)
+    if user is None:
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="Could not find user for the provided session",
+            headers={"WWW-Authenticate": "Bearer"},
+        )
+
+    return user # Her şey yolunda

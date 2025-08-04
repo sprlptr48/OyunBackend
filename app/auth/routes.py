@@ -4,8 +4,10 @@ from fastapi import FastAPI, Depends, APIRouter
 from starlette.requests import Request
 
 from app.auth import service
-from app.auth.schemas import UserCreate, UserLogin, SessionSchema, RegisterResponse, ForgotPasswordSchema, ResetPasswordSchema, VerifyEmailSchema, UserLogoutSchema
+from app.auth.schemas import UserCreate, UserLogin, SessionSchema, RegisterResponse, ForgotPasswordSchema, \
+    ResetPasswordSchema, VerifyEmailSchema, UserLogoutSchema, ReturnUser
 from app.auth.crud import *
+from app.auth.service import get_current_user
 from app.core.database import get_db, Base, engine
 from app.core.limiter import limiter
 
@@ -67,4 +69,13 @@ async def reset_password_endpoint(data: ResetPasswordSchema, db: Session = Depen
 @limiter.limit("15/15 minutes")
 async def verify_email_endpoint(request: Request, login_data: VerifyEmailSchema, db: Session = Depends(get_db)):
     return service.verify_email(login_data, db)
+
+@auth_router.post("/delete-user", status_code=200)
+def delete_user_endpoint(session: str,  db: Session = Depends(get_db), current_user: User = Depends(get_current_user)):
+    return service.delete_user(session=session, db=db, user=current_user)
+
+@auth_router.get("/users/me")
+def read_users_me(current_user: User = Depends(get_current_user)):
+    user_data = ReturnUser.model_validate(current_user)
+    return {"user": user_data}
 

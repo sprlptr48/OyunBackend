@@ -27,7 +27,6 @@ def normalize_phone(phone: str) -> str:
     return phone
 
 
-
 def validate_session(session: SessionSchema) -> bool:
     """Session verisi hala geçerli mi, süresi bitti mi?"""
     valid_until = session.valid_until

@@ -1,4 +1,5 @@
 from sqlalchemy import Column, ForeignKey, Integer, String, DateTime, Boolean
+from sqlalchemy.orm import relationship, backref
 
 from app.core.database import Base
 
@@ -10,7 +11,7 @@ class User(Base):
     username = Column(String(length=40), unique=True, nullable=False)
     email = Column(String(length=40), unique=True, nullable=False, index=True)
     password = Column(String(length=60)) #bcrypt uses 60 chars
-    phone = Column(String(length=20), unique=True)
+    phone = Column(String(length=16), unique=True)
     user_status = Column(String(length=40))
     email_status = Column(Boolean, default=False)
 
@@ -18,8 +19,9 @@ class User(Base):
 class SessionModel(Base):
     __tablename__ = 'session'
     session_id = Column(String(255), primary_key=True)
-    user_id = Column(Integer, ForeignKey('users.userid'), index=True)
+    user_id = Column(Integer, ForeignKey('users.userid', ondelete='CASCADE'), index=True)
     valid_until = Column(DateTime(timezone=True))
+    parent = relationship('User', backref=backref('sessions', passive_deletes=True))
 
 class RecoveryCode(Base):
     __tablename__ = 'recovery_code'
