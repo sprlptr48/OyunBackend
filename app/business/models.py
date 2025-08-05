@@ -14,7 +14,7 @@ class Business(Base):
     description = Column(String(length=255))
     #business_type_id = Column(Integer, ForeignKey('business_types.id'))
     is_active = Column(Boolean)
-    created_at = Column(DateTime, default=datetime.now(timezone.utc))
+    created_at = Column(DateTime, default=lambda: datetime.now(timezone.utc))
 
 class Branch(Base):
     __tablename__ = 'branch'

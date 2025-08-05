@@ -1,8 +1,11 @@
 from datetime import timedelta
+from urllib.error import URLError
 
+import requests.exceptions
 from fastapi import HTTPException, Depends, Header
 from sqlalchemy.exc import IntegrityError, SQLAlchemyError
 from starlette import status
+from urllib3.exceptions import NewConnectionError
 
 from app.auth.email import send_password_reset_email, send_verification_email
 from app.auth.schemas import UserCreate, UserLogin, SessionSchema, ReturnUser, ForgotPasswordSchema, ResetPasswordSchema, VerifyEmailSchema, UserLogoutSchema
@@ -43,19 +46,25 @@ def register(new_user: UserCreate, encrypted: bool, db: Session):
         db.rollback()
         print(f"Error: {e}")
         raise HTTPException(501, "Error when creating user")
-    # Email Doğrulama kodu oluştur ve kaydet
-    try:
-        email_code = verification_code()
-        code = EmailVerificationCode(user_id=created_user.userid, verification_code=email_code,
-                                     valid_until=datetime.now(timezone.utc) + timedelta(hours=1))
-        save_email_verification_code(db, code)
-        send_verification_email(user.email, email_code)
-        db.commit()
-        db.refresh(code)
-    except Exception as e:
-        db.rollback()
-        print(f"Error: {e}")
-        raise HTTPException(501, "Error when creating user")
+
+    for i in range(3): # Because of DNS issues on the first run, try again
+        try:    # Email Doğrulama kodu oluştur ve kaydet
+            email_code = verification_code()
+            code = EmailVerificationCode(user_id=created_user.userid, verification_code=email_code,
+                                         valid_until=datetime.now(timezone.utc) + timedelta(hours=1))
+            save_email_verification_code(db, code)
+            #send_verification_email(user.email, email_code)
+            db.commit()
+            db.refresh(code)
+        except (NewConnectionError, URLError, ConnectionError, requests.exceptions.ConnectionError) as e:
+            db.rollback()
+            print(f"DNS Error: {e}")
+            continue # Try again, probably will get fixed.
+        except Exception as e:
+            db.rollback()
+            print(f"Error: {e}")
+            raise HTTPException(501, "Error when creating user")
+        break # Email sent successfully, exit
 
     returnUser = ReturnUser.model_validate(created_user) # Convert to return value, which removes password
     return {"success": True, "message": "Email Validation Required", "user": returnUser}#, "session": saved_session}
