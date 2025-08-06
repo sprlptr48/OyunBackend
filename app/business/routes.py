@@ -1,6 +1,6 @@
 import logging
 
-from fastapi import APIRouter, Depends
+from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy.orm import Session
 
 from . import service
@@ -30,3 +30,4 @@ def create_branch_endpoint(branch_data: BranchCreateSchema, db: Session = Depend
 
 @business_router.get("/near-me")
 def business_near_me(location: PointSchema,db: Session = Depends(get_db)):
+    raise HTTPException(status_code=500, detail="not implemented")
