@@ -1,12 +1,15 @@
 import logging
 
+import geoalchemy2.types
 from fastapi import APIRouter, Depends, HTTPException
+from geoalchemy2.shape import to_shape
+from shapely import Point
 from sqlalchemy.orm import Session
 
 from . import service
 from .models import *
 from .schemas import BusinessCreateResponse, BusinessCreateSchema, CustomBusinessCreationResponse, BranchCreateSchema, \
-    CustomBranchCreationResponse, BranchCreateResponse, PointSchema
+    CustomBranchCreationResponse, BranchCreateResponse, PointSchema, BranchNearMeResponseList, BranchListResponse
 from ..core.database import get_db
 
 logger = logging.getLogger('uvicorn.error')
@@ -24,10 +27,59 @@ def create_business_endpoint(business_data: BusinessCreateSchema, db: Session = 
 def create_branch_endpoint(branch_data: BranchCreateSchema, db: Session = Depends(get_db)):
     result = service.create_branch(branch_data, db)
     if not result:
-        return CustomBranchCreationResponse(success=False, message="Business Creation Fail")
-    return CustomBranchCreationResponse(
-        success=True, message="Branch Created", branch=BranchCreateResponse.model_validate(result.__dict__))
+        return CustomBranchCreationResponse(success=False, message="Branch Creation Fail")
 
+    # WKBElement'i PointSchema'ya dönüştürme
+    shapely_point = to_shape(result.location)
+    location_schema = PointSchema(
+        latitude=shapely_point.y,
+        longitude=shapely_point.x
+    )
+
+    # Yanıt modelini oluştururken dönüştürülmüş location'ı kullanma
+    branch_response_data = result.__dict__.copy()
+    branch_response_data['location'] = location_schema
+
+    return CustomBranchCreationResponse(
+        success=True,
+        message="Branch Created",
+        branch=BranchCreateResponse.model_validate(branch_response_data)
+    )
+
+# LAT: Kuzey güney LON: Doğu-Batı
 @business_router.get("/near-me")
-def business_near_me(location: PointSchema,db: Session = Depends(get_db)):
-    raise HTTPException(status_code=500, detail="not implemented")
+def business_near_me_endpoint(lat: float, lon: float, radius: int, db: Session = Depends(get_db)):
+    """
+    Takes in a Point(float longtitude, float latitude) and the radius and
+    returns a list of businesses near the point.
+    """
+    location = Point(lon, lat)
+    result = service.business_near_me(location, radius, db)
+
+    if not result:
+        return BranchNearMeResponseList(success=False, message="None Found")
+
+    return BranchNearMeResponseList(
+        success=True,
+        message="Branches found",
+        branches=result
+    )
+
+@business_router.get("/list")
+def branch_list_endpoint(lat: float, lon: float, limit: int, db: Session = Depends(get_db)):
+    """
+    Takes in latitude and longitude and returns a list of businesses nearby,
+    sorted from closest to farthest.
+    """
+    location = Point(lon, lat)
+    result = service.branch_list(location, limit, db)
+
+    if not result:
+        return BranchListResponse(success=False, message="None Found")
+
+    return BranchListResponse(
+        success=True,
+        message="Branches found",
+        branches=result
+    )
+

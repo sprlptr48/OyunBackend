@@ -36,3 +36,31 @@ class CustomBranchCreationResponse(BaseModel):
     message: str
     branch: BranchCreateResponse | None = None
 
+# In schemas.py
+class BranchNearMeResponse(BaseModel):
+    id: int
+    business_id: int
+    address_text: str
+    phone: str
+    location: PointSchema | None
+    is_active: bool
+    created_at: datetime
+class BranchNearMeResponseList(BaseModel):
+    success: bool
+    message: str | None = None
+    branches: list[BranchNearMeResponse] | None = None
+
+class BranchListItem(BaseModel):
+    id: int
+    business_id: int
+    address_text: str
+    phone: str
+    location: PointSchema | None
+    is_active: bool
+    created_at: datetime
+    distance: float
+
+class BranchListResponse(BaseModel):
+    success: bool
+    message: str
+    branches: list[BranchListItem] | None = None
