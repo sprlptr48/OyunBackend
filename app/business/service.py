@@ -1,16 +1,19 @@
 from datetime import datetime, timezone
 import logging
 
+from fastapi import HTTPException
 from geoalchemy2.functions import ST_MakePoint
 from geoalchemy2.shape import to_shape
 from shapely import Point
 from sqlalchemy.orm import Session
+from starlette import status
 
+from app.auth.models import User
 from app.business import crud
 from app.business.crud import business_near_point, find_nearest_businesses_ordered
 from app.business.models import Business, Branch
 from app.business.schemas import BusinessCreateResponse, BusinessCreateSchema, PointSchema, BranchNearMeResponseList, \
-    BranchListResponse, BranchListItem, BranchNearMeItem, BranchDetailSchema
+    BranchListResponse, BranchListItem, BranchNearMeItem, BranchDetailSchema, BranchUpdateSchema
 
 
 def create_business(business_data: BusinessCreateSchema, db: Session) -> Business | None:
@@ -136,3 +139,25 @@ def get_branch_details(db: Session, branch_id: int):
         business_description=branch.business.description,
         created_at=branch.created_at
     )
+
+
+def edit_branch(db: Session, branch_id: int, update_data: BranchUpdateSchema, current_user: User):
+    """
+    Bir şubeyi düzenlemek için iş mantığını ve yetkilendirmeyi yönetir.
+    """
+    db_branch = crud.get_branch_by_id(db, branch_id)
+    if not db_branch:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Branch not found"
+        )
+
+    if db_branch.business.owner_id != current_user.userid: #sahibi değilse
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="You do not have permission to edit this branch"
+        )
+
+    # yetki varsa güncelleme işlemini yap.
+    updated_branch = crud.update_branch(db, db_branch, update_data)
+    return updated_branch

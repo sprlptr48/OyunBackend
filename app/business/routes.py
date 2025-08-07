@@ -11,7 +11,9 @@ from . import service
 from .models import *
 from .schemas import BusinessCreateResponse, BusinessCreateSchema, CustomBusinessCreationResponse, BranchCreateSchema, \
     CustomBranchCreationResponse, BranchCreateResponse, PointSchema, BranchNearMeResponseList, BranchListResponse, \
-    CustomBranchDetailResponse
+    CustomBranchDetailResponse, CustomBranchUpdateResponse, BranchUpdateSchema
+from ..auth.models import User
+from ..auth.service import get_current_user
 from ..core.database import get_db
 
 logger = logging.getLogger('uvicorn.error')
@@ -94,9 +96,10 @@ def get_branch_detail_endpoint(branch_id: int, db: Session = Depends(get_db)):
     branch_details = service.get_branch_details(db, branch_id)
 
     if not branch_details:
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND,
-            detail="Branch not found or is not active."
+        return CustomBranchDetailResponse(
+            success=False,
+            message="Branch details not found",
+            data=None
         )
 
     return CustomBranchDetailResponse(
@@ -104,3 +107,42 @@ def get_branch_detail_endpoint(branch_id: int, db: Session = Depends(get_db)):
         message="Branch details retrieved",
         data=branch_details
     )
+
+
+@business_router.put("/branches/{branch_id}",response_model=CustomBranchUpdateResponse)
+def update_branch_endpoint(branch_id: int, branch_data: BranchUpdateSchema, db: Session = Depends(get_db), current_user: User = Depends(get_current_user)):
+    """
+    Mevcut bir şubeyi günceller.
+    - Kimlik doğrulaması (Authentication) gerektirir.
+    - Kullanıcı, şubenin ait olduğu işletmenin sahibi olmalıdır (Authorization).
+    """
+    try:
+        updated_branch = service.edit_branch(
+            db=db,
+            branch_id=branch_id,
+            update_data=branch_data,
+            current_user=current_user
+        )
+        shapely_point = to_shape(updated_branch.location)
+        location_schema = PointSchema(
+            latitude=shapely_point.y,
+            longitude=shapely_point.x
+        )
+        branch_response_data = updated_branch.__dict__.copy()
+        branch_response_data['location'] = location_schema
+
+        return CustomBranchUpdateResponse(
+            success=True,
+            message="Branch updated successfully",
+            branch=BranchCreateResponse.model_validate(branch_response_data)
+        )
+    except HTTPException as e:
+        # Servis katmanından gelen HTTP hatalarını doğrudan yansıt
+        raise e
+    except Exception as e:
+        # Beklenmedik bir hata oluşursa logla ve 500 hatası dön
+        logger.error(f"Error updating branch {branch_id}: {e}")
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail="An unexpected error occurred."
+        )

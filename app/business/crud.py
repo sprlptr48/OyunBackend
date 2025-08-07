@@ -4,6 +4,7 @@ from geoalchemy2.shape import from_shape
 from shapely.geometry import Point
 
 from .models import Branch, Business  # Assuming models are in the same directory/module
+from .schemas import BranchUpdateSchema
 
 
 def business_near_point(point: Point, radius: int, db: Session):
@@ -68,3 +69,33 @@ def get_branch_with_details_by_id(db: Session, branch_id: int):
         Branch.is_active == True,
         Branch.business.has(Business.is_active == True)
     ).first()
+
+
+def get_branch_by_id(db: Session, branch_id: int) -> Branch | None:
+    """
+    Tek bir şubeyi ID'sine göre getirir.
+    Performans için ilişkili 'business' verisini de aynı sorguda yükler (joinedload).
+    """
+    return db.query(Branch).options(
+        joinedload(Branch.business)
+    ).filter(Branch.id == branch_id).first()
+
+
+def update_branch(db: Session, db_branch: Branch, update_data: BranchUpdateSchema) -> Branch:
+    """
+    Mevcut bir Branch nesnesini yeni verilerle günceller ve veritabanına kaydeder.
+    """
+    update_dict = update_data.model_dump(exclude_unset=True) #sadece gönderilen verileri ekle
+
+    for key, value in update_dict.items():
+        # Konum verisi özel işlem gerektirir.
+        if key == "location" and value is not None:
+            point = Point(value['longitude'], value['latitude'])
+            setattr(db_branch, key, from_shape(point, srid=4326))
+        else:
+            setattr(db_branch, key, value)
+
+    db.add(db_branch)
+    db.commit()
+    db.refresh(db_branch)
+    return db_branch

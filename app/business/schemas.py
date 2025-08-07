@@ -1,4 +1,6 @@
 from datetime import datetime, timezone
+from typing import Optional
+
 from pydantic import ConfigDict, BaseModel
 
 class BusinessCreateSchema(BaseModel):
@@ -83,3 +85,17 @@ class CustomBranchDetailResponse(BaseModel):
     success: bool
     message: str
     data: BranchDetailSchema | None = None
+
+
+class BranchUpdateSchema(BaseModel):
+    address_text: Optional[str] = None
+    phone: Optional[str] = None
+    location: Optional[PointSchema] = None
+    is_active: Optional[bool] = None
+
+    model_config = ConfigDict(from_attributes=True)
+
+class CustomBranchUpdateResponse(BaseModel):
+    success: bool
+    message: str
+    branch: Optional[BranchCreateResponse] = None
