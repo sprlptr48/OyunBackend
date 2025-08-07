@@ -5,11 +5,13 @@ from fastapi import APIRouter, Depends, HTTPException
 from geoalchemy2.shape import to_shape
 from shapely import Point
 from sqlalchemy.orm import Session
+from starlette import status
 
 from . import service
 from .models import *
 from .schemas import BusinessCreateResponse, BusinessCreateSchema, CustomBusinessCreationResponse, BranchCreateSchema, \
-    CustomBranchCreationResponse, BranchCreateResponse, PointSchema, BranchNearMeResponseList, BranchListResponse
+    CustomBranchCreationResponse, BranchCreateResponse, PointSchema, BranchNearMeResponseList, BranchListResponse, \
+    CustomBranchDetailResponse
 from ..core.database import get_db
 
 logger = logging.getLogger('uvicorn.error')
@@ -83,3 +85,22 @@ def branch_list_endpoint(lat: float, lon: float, limit: int, db: Session = Depen
         branches=result
     )
 
+@business_router.get("/branch/{branch_id}", response_model=CustomBranchDetailResponse)
+def get_branch_detail_endpoint(branch_id: int, db: Session = Depends(get_db)):
+    """
+    Belirli bir şubenin ve bağlı olduğu işletmenin detaylı bilgilerini getirir.
+    Bu endpoint herkese açıktır.
+    """
+    branch_details = service.get_branch_details(db, branch_id)
+
+    if not branch_details:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Branch not found or is not active."
+        )
+
+    return CustomBranchDetailResponse(
+        success=True,
+        message="Branch details retrieved",
+        data=branch_details
+    )

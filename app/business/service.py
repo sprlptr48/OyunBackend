@@ -6,10 +6,11 @@ from geoalchemy2.shape import to_shape
 from shapely import Point
 from sqlalchemy.orm import Session
 
+from app.business import crud
 from app.business.crud import business_near_point, find_nearest_businesses_ordered
 from app.business.models import Business, Branch
 from app.business.schemas import BusinessCreateResponse, BusinessCreateSchema, PointSchema, BranchNearMeResponseList, \
-    BranchListResponse, BranchListItem, BranchNearMeItem
+    BranchListResponse, BranchListItem, BranchNearMeItem, BranchDetailSchema
 
 
 def create_business(business_data: BusinessCreateSchema, db: Session) -> Business | None:
@@ -105,3 +106,33 @@ def branch_list(location: Point, limit, db):
         branches_list.append(branch_response)
 
     return branches_list
+
+def get_branch_details(db: Session, branch_id: int):
+    """
+    Şube detaylarını alır ve yanıt şemasına uygun hale getirir.
+    """
+    branch = crud.get_branch_with_details_by_id(db, branch_id)
+
+    if not branch:
+        return None
+
+    # Konum verisini Pydantic şemasına dönüştür
+    location_schema = None
+    if branch.location:
+        shapely_point = to_shape(branch.location)
+        location_schema = PointSchema(
+            latitude=shapely_point.y,
+            longitude=shapely_point.x
+        )
+
+    return BranchDetailSchema(
+        id=branch.id,
+        address_text=branch.address_text,
+        phone=branch.phone,
+        location=location_schema,
+        is_active=branch.is_active,
+        business_id=branch.business.id,
+        business_name=branch.business.name,
+        business_description=branch.business.description,
+        created_at=branch.created_at
+    )

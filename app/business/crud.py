@@ -3,7 +3,7 @@ from geoalchemy2.functions import ST_DWithin, ST_Distance, ST_SetSRID, ST_MakePo
 from geoalchemy2.shape import from_shape
 from shapely.geometry import Point
 
-from .models import Branch  # Assuming models are in the same directory/module
+from .models import Branch, Business  # Assuming models are in the same directory/module
 
 
 def business_near_point(point: Point, radius: int, db: Session):
@@ -55,3 +55,16 @@ def find_nearest_businesses_ordered(lat: float, lon: float, limit: int, db: Sess
     )
 
     return query.all()
+
+def get_branch_with_details_by_id(db: Session, branch_id: int):
+    """
+    Verilen ID'ye sahip aktif bir şubeyi, bağlı olduğu aktif işletme
+    bilgileriyle birlikte getirir.
+    """
+    return db.query(Branch).options(
+        joinedload(Branch.business)
+    ).filter(
+        Branch.id == branch_id,
+        Branch.is_active == True,
+        Branch.business.has(Business.is_active == True)
+    ).first()

@@ -63,3 +63,23 @@ class BranchListResponse(BaseModel):
     success: bool
     message: str
     branches: list[BranchListItem] | None = None
+
+class BranchDetailSchema(BaseModel):
+    # Şube (Branch)
+    id: int
+    address_text: str
+    phone: str
+    location: PointSchema | None
+    is_active: bool
+    # Business
+    business_id: int
+    business_name: str
+    business_description: str
+    created_at: datetime | None = None
+
+    model_config = ConfigDict(from_attributes=True)
+
+class CustomBranchDetailResponse(BaseModel):
+    success: bool
+    message: str
+    data: BranchDetailSchema | None = None
