@@ -210,7 +210,7 @@ def get_current_user(authorization: str = Header(...), db: Session = Depends(get
         )
     db_session = get_session(db, session_token)
 
-    if not db_session or not db_session.valid_until < datetime.now(timezone.utc):
+    if not db_session or db_session.valid_until < datetime.now(timezone.utc):
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
             detail="Invalid or expired session token",
