@@ -224,5 +224,5 @@ def get_current_user(authorization: str = Header(...), db: Session = Depends(get
             detail="Could not find user for the provided session",
             headers={"WWW-Authenticate": "Bearer"},
         )
-
     return user # Her şey yolunda
+

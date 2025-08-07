@@ -1,7 +1,9 @@
+import random
 from contextlib import asynccontextmanager
 
 from fastapi import FastAPI
 from slowapi.middleware import SlowAPIMiddleware
+from starlette.responses import RedirectResponse
 from uvicorn.middleware.proxy_headers import ProxyHeadersMiddleware
 
 from app.core.database import engine, Base
@@ -25,3 +27,12 @@ app.state.limiter = limiter
 
 app.add_middleware(ProxyHeadersMiddleware, trusted_hosts="*")
 app.add_middleware(SlowAPIMiddleware)
+
+@app.get("/", include_in_schema=False)
+def root_redirect():
+    """
+    Redirects the root URL to the API documentation.
+    """
+    if random.Random().random() >= 0.5:
+        return {"message": "Hello Word"}
+    return RedirectResponse(url="/docs")
