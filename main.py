@@ -12,7 +12,7 @@ from app.business.routes import business_router
 
 @asynccontextmanager
 async def lifespan(app_instance: FastAPI):
-    Base.metadata.drop_all(bind=engine)
+    #Base.metadata.drop_all(bind=engine)
     Base.metadata.create_all(bind=engine)
     yield
 

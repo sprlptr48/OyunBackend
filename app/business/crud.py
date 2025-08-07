@@ -1,39 +1,57 @@
-from geoalchemy2 import Geography
-from geoalchemy2.functions import ST_DWithin
+from sqlalchemy.orm import Session, joinedload
+from geoalchemy2.functions import ST_DWithin, ST_Distance, ST_SetSRID, ST_MakePoint
 from geoalchemy2.shape import from_shape
-from sqlalchemy import func
-from sqlalchemy.orm import Session
 from shapely.geometry import Point
 
-from app.business.models import Branch
-from app.business.schemas import PointSchema
-import geoalchemy2
+from .models import Branch  # Assuming models are in the same directory/module
 
-def business_near_point(point: Point, radius: int, db: Session): # business in a circle
-    #search_point: Point = Point(point.longitude, point.latitude) # Convert to usable type(simplify wkb conv)
+
+def business_near_point(point: Point, radius: int, db: Session):
+    """
+    Finds active branches within a given radius of a point.
+    Optimized to pre-load business data to avoid N+1 queries.
+    """
     search_point_wkb = from_shape(point, srid=4326)
 
-    return db.query(Branch).filter(
+    query = db.query(Branch).options(
+        # --- OPTIMIZATION ---
+        # Eagerly loads the related Business object in the same query.
+        # This prevents a separate DB call for each branch to get its name.
+        joinedload(Branch.business)
+    ).filter(
+        # --- FILTER ---
+        # Ensures only active and available branches are returned.
+        Branch.is_active == True,
+
+        # Geospatial filter to find branches within the specified radius.
         ST_DWithin(
             Branch.location,
             search_point_wkb,
             radius
         )
-    ).all()
-
-
-def find_nearest_businesses_ordered(lat: float, lon: float, limit: int, db: Session): # business list ordered by closest
-    user_point = func.ST_SetSRID(func.ST_MakePoint(lon, lat), 4326)
-    # Query for the Business objects.
-    # We also include the distance from the user_point in the query result.
-    query = db.query(
-        Branch,
-        func.ST_Distance(Branch.location, user_point).label('distance')
     )
-    # Order the results by the calculated distance in ascending order (closest first).
-    query = query.order_by('distance')
-
-    query = query.limit(limit)
 
     return query.all()
 
+
+def find_nearest_businesses_ordered(lat: float, lon: float, limit: int, db: Session):
+    """
+    Finds a limited number of the nearest active branches to a point,
+    ordered by distance. Optimized to pre-load business data.
+    """
+    user_point = ST_SetSRID(ST_MakePoint(lon, lat), 4326)
+
+    query = db.query(
+        Branch,
+        ST_Distance(Branch.location, user_point).label('distance')
+    ).options(
+        joinedload(Branch.business)
+    ).filter(
+        Branch.is_active == True # Only open branches
+    ).order_by(
+        'distance'  # Order by the calculated distance, closest first
+    ).limit(
+        limit
+    )
+
+    return query.all()

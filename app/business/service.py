@@ -1,7 +1,6 @@
 from datetime import datetime, timezone
 import logging
 
-from anyio import create_udp_socket
 from geoalchemy2.functions import ST_MakePoint
 from geoalchemy2.shape import to_shape
 from shapely import Point
@@ -10,7 +9,7 @@ from sqlalchemy.orm import Session
 from app.business.crud import business_near_point, find_nearest_businesses_ordered
 from app.business.models import Business, Branch
 from app.business.schemas import BusinessCreateResponse, BusinessCreateSchema, PointSchema, BranchNearMeResponseList, \
-    BranchNearMeResponse, BranchListResponse, BranchListItem
+    BranchListResponse, BranchListItem, BranchNearMeItem
 
 
 def create_business(business_data: BusinessCreateSchema, db: Session) -> Business | None:
@@ -70,26 +69,24 @@ def business_near_me(location: Point, radius, db):
                 longitude=shapely_point.x
             )
 
-        branch_response = BranchNearMeResponse(
+        # Yeni, yalın şemayı kullanarak yanıt oluşturuluyor
+        branch_response = BranchNearMeItem(
             id=branch.id,
             business_id=branch.business_id,
-            address_text=branch.address_text,
-            phone=branch.phone,
-            location=location_schema,
-            is_active=branch.is_active,
-            created_at=branch.created_at
+            business_name=branch.business.name,  # İlişki üzerinden isme erişim
+            location=location_schema
         )
         branch_responses.append(branch_response)
     return branch_responses
 
 
 def branch_list(location: Point, limit, db):
-    branches = find_nearest_businesses_ordered(location.y, location.x, limit, db)
-    if not branches:
+    branches_with_distance = find_nearest_businesses_ordered(location.y, location.x, limit, db)
+    if not branches_with_distance:
         return None
 
     branches_list = []
-    for branch, distance in branches: #Create a list from return values
+    for branch, distance in branches_with_distance:
         location_schema = None
         if branch.location:
             shapely_point = to_shape(branch.location)
@@ -101,11 +98,8 @@ def branch_list(location: Point, limit, db):
         branch_response = BranchListItem(
             id=branch.id,
             business_id=branch.business_id,
-            address_text=branch.address_text,
-            phone=branch.phone,
+            business_name=branch.business.name,
             location=location_schema,
-            is_active=branch.is_active,
-            created_at=branch.created_at,
             distance=distance
         )
         branches_list.append(branch_response)
