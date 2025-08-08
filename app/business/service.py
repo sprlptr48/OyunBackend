@@ -1,5 +1,6 @@
 from datetime import datetime, timezone
 import logging
+from typing import Optional
 
 from fastapi import HTTPException
 from geoalchemy2.functions import ST_MakePoint
@@ -177,3 +178,34 @@ def get_business_details(db: Session, business_id: int):
 
 
     return business
+
+
+def search_for_branches(db: Session, keyword: str, lat: Optional[float], lon: Optional[float], radius: Optional[int]) \
+        -> list[BranchNearMeItem]:
+    """
+    Arama parametrelerini işler, CRUD'u çağırır ve sonucu formatlar.
+    """
+    point = None
+    if lat is not None and lon is not None:
+        point = Point(lon, lat)
+
+    branches = crud.search_branches(db, keyword=keyword, point=point, radius=radius)
+    # Sonuçları Pydantic şemasına dönüştür.
+    branch_responses = []
+    for branch in branches:
+        location_schema = None
+        if branch.location:
+            shapely_point = to_shape(branch.location)
+            location_schema = PointSchema(
+                latitude=shapely_point.y,
+                longitude=shapely_point.x
+            )
+        branch_responses.append(
+            BranchNearMeItem(
+                id=branch.id,
+                business_id=branch.business_id,
+                business_name=branch.business.name,
+                location=location_schema
+            )
+        )
+    return branch_responses

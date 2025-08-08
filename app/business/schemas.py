@@ -117,3 +117,11 @@ class CustomBusinessDetailResponse(BaseModel):
     success: bool
     message: str
     business: BusinessDetailResponse | None = None
+
+class BranchSearchResponseList(BaseModel):
+    """
+    /branches/search endpoint'i için yanıt
+    """
+    success: bool
+    message: str | None = None
+    branches: list[BranchNearMeItem] | None = None

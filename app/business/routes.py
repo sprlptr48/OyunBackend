@@ -1,4 +1,5 @@
 import logging
+from typing import Optional
 
 import geoalchemy2.types
 from fastapi import APIRouter, Depends, HTTPException
@@ -12,7 +13,7 @@ from .models import *
 from .schemas import BusinessCreateResponse, BusinessCreateSchema, CustomBusinessCreationResponse, BranchCreateSchema, \
     CustomBranchCreationResponse, BranchCreateResponse, PointSchema, BranchNearMeResponseList, BranchListResponse, \
     CustomBranchDetailResponse, CustomBranchUpdateResponse, BranchUpdateSchema, CustomBusinessDetailResponse, \
-    BusinessDetailResponse
+    BusinessDetailResponse, BranchSearchResponseList
 from ..auth.models import User
 from ..auth.service import get_current_user
 from ..core.database import get_db
@@ -192,3 +193,26 @@ def get_business_detail_endpoint(business_id: int, db: Session = Depends(get_db)
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail="An unexpected error occurred."
         )
+
+@business_router.get("/branches/search", response_model=BranchSearchResponseList)
+def search_branches_endpoint(keyword: str, lat: Optional[float] = None, lon: Optional[float] = None, radius: Optional[int] = None, db: Session = Depends(get_db)):
+    """
+    Anahtar kelime ve opsiyonel lokasyon ile şube arar.
+    - **keyword**: İşletme adı veya adreste aranacak metin.
+    - **lat, lon**: Arama yapılacak merkez noktanın enlem ve boylamı.
+    - **radius**: Merkez noktadan itibaren aranacak alanın metre cinsinden yarıçapı.
+    """
+    results = service.search_for_branches(
+        db=db,
+        keyword=keyword,
+        lat=lat,
+        lon=lon,
+        radius=radius
+    )
+    if not results:
+        return BranchSearchResponseList(success=True, message="No branches found matching your criteria.", branches=[])
+    return BranchSearchResponseList(
+        success=True,
+        message=f"{len(results)} branches found.",
+        branches=results
+    )

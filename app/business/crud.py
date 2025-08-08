@@ -1,3 +1,6 @@
+from typing import Optional
+
+from sqlalchemy import or_
 from sqlalchemy.orm import Session, joinedload, selectinload
 from geoalchemy2.functions import ST_DWithin, ST_Distance, ST_SetSRID, ST_MakePoint
 from geoalchemy2.shape import from_shape
@@ -111,3 +114,40 @@ def get_business_with_branches_by_id(db: Session, business_id: int) -> Business 
     ).filter(Business.id == business_id)
 
     return query.first()
+
+
+def search_branches(db: Session, keyword: str, point: Optional[Point] = None, radius: Optional[int] = None)\
+        -> list[Branch]:
+    """
+    Anahtar kelimeye ve opsiyonel olarak lokasyona göre şubeleri arar.
+    - `business.name` ve `branch.address_text` alanlarında arama yapar.
+    - Sadece aktif şubeleri ve işletmeleri döndürür.
+    - Performans için 'business' verisini önceden yükler.
+    """
+    # Temel sorgu: Branch ve Business tablolarını birleştirir.
+    query = db.query(Branch).join(Branch.business).options(
+        joinedload(Branch.business)
+    )
+    # Filtre 1: Anahtar Kelime (Case-insensitive)
+    if keyword:
+        search_term = f"%{keyword}%"
+        query = query.filter(
+            or_(
+                Business.name.ilike(search_term),
+                Branch.address_text.ilike(search_term)
+            )
+        )
+    # Filtre 2: Lokasyon (Eğer parametreler verildiyse)
+    if point and radius:
+        search_point_wkb = from_shape(point, srid=4326)
+        query = query.filter(
+            ST_DWithin(Branch.location, search_point_wkb, radius)
+        )
+    # Filtre 3: Sadece Aktif Olanlar
+    # Hem şubenin hem de ana işletmenin aktif olması önemlidir.
+    query = query.filter(
+        Branch.is_active == True,
+        Business.is_active == True
+    )
+
+    return query.all()
