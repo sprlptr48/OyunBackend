@@ -1,5 +1,5 @@
 from datetime import datetime, timezone
-from typing import Optional
+from typing import Optional, List
 
 from pydantic import ConfigDict, BaseModel
 
@@ -99,3 +99,21 @@ class CustomBranchUpdateResponse(BaseModel):
     success: bool
     message: str
     branch: Optional[BranchCreateResponse] = None
+
+
+class BusinessDetailResponse(BaseModel):
+    """
+    Bir işletmenin kendi detaylarını ve şubelerinin listesini içeren ana model.
+    """
+    id: int
+    owner_id: int
+    name: str
+    description: str
+    is_active: bool
+    branches: List[BranchCreateResponse]
+
+    model_config = ConfigDict(from_attributes=True)
+class CustomBusinessDetailResponse(BaseModel):
+    success: bool
+    message: str
+    business: BusinessDetailResponse | None = None

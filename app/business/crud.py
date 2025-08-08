@@ -1,4 +1,4 @@
-from sqlalchemy.orm import Session, joinedload
+from sqlalchemy.orm import Session, joinedload, selectinload
 from geoalchemy2.functions import ST_DWithin, ST_Distance, ST_SetSRID, ST_MakePoint
 from geoalchemy2.shape import from_shape
 from shapely.geometry import Point
@@ -99,3 +99,15 @@ def update_branch(db: Session, db_branch: Branch, update_data: BranchUpdateSchem
     db.commit()
     db.refresh(db_branch)
     return db_branch
+
+
+def get_business_with_branches_by_id(db: Session, business_id: int) -> Business | None:
+    """
+    Verilen ID'ye sahip işletmeyi, ilişkili tüm şubeleriyle birlikte getirir.
+    Performans için `selectinload` kullanılarak N+1 sorgu problemi önlenir.
+    """
+    query = db.query(Business).options(
+        selectinload(Business.branches)
+    ).filter(Business.id == business_id)
+
+    return query.first()

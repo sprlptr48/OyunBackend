@@ -11,7 +11,8 @@ from . import service
 from .models import *
 from .schemas import BusinessCreateResponse, BusinessCreateSchema, CustomBusinessCreationResponse, BranchCreateSchema, \
     CustomBranchCreationResponse, BranchCreateResponse, PointSchema, BranchNearMeResponseList, BranchListResponse, \
-    CustomBranchDetailResponse, CustomBranchUpdateResponse, BranchUpdateSchema
+    CustomBranchDetailResponse, CustomBranchUpdateResponse, BranchUpdateSchema, CustomBusinessDetailResponse, \
+    BusinessDetailResponse
 from ..auth.models import User
 from ..auth.service import get_current_user
 from ..core.database import get_db
@@ -142,6 +143,51 @@ def update_branch_endpoint(branch_id: int, branch_data: BranchUpdateSchema, db: 
     except Exception as e:
         # Beklenmedik bir hata oluşursa logla ve 500 hatası dön
         logger.error(f"Error updating branch {branch_id}: {e}")
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail="An unexpected error occurred."
+        )
+
+
+
+@business_router.get("/{business_id}", response_model=CustomBusinessDetailResponse)
+def get_business_detail_endpoint(business_id: int, db: Session = Depends(get_db)):
+    """
+    Belirli bir işletmenin tüm detaylarını ve şubelerini döndürür.
+    Bu endpoint herkese açıktır, kimlik doğrulaması gerektirmez.
+    """
+    try:
+        business_orm = service.get_business_details(db, business_id)
+
+        serialized_branches = []
+        for branch in business_orm.branches:
+            location_schema = None
+            if branch.location is not None:
+                shapely_point = to_shape(branch.location)
+                location_schema = PointSchema(
+                    latitude=shapely_point.y,
+                    longitude=shapely_point.x
+                )
+
+            branch_data = branch.__dict__
+            branch_data['location'] = location_schema
+            serialized_branches.append(BranchCreateResponse.model_validate(branch_data))
+
+        business_data = business_orm.__dict__
+        business_data['branches'] = serialized_branches
+
+        final_business_response = BusinessDetailResponse.model_validate(business_data)
+
+        return CustomBusinessDetailResponse(
+            success=True,
+            message="Business details fetched successfully",
+            business=final_business_response
+        )
+
+    except HTTPException as e:
+        raise e
+    except Exception as e:
+        logger.error(f"Error fetching details for business {business_id}: {e}")
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail="An unexpected error occurred."

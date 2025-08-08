@@ -1,8 +1,9 @@
 from datetime import datetime, timezone
+from typing import List
 
 from geoalchemy2 import Geography
 from sqlalchemy import Column, ForeignKey, Integer, String, DateTime, Boolean
-from sqlalchemy.orm import backref, relationship
+from sqlalchemy.orm import backref, relationship, Mapped
 
 from app.core.database import Base
 
@@ -15,6 +16,8 @@ class Business(Base):
     #business_type_id = Column(Integer, ForeignKey('business_types.id'))
     is_active = Column(Boolean)
     created_at = Column(DateTime, default=lambda: datetime.now(timezone.utc))
+    branches: Mapped[List["Branch"]] = relationship(back_populates="business") #doesn't exist normally, just a type hint.
+
 
 class Branch(Base):
     __tablename__ = 'branch'
@@ -25,7 +28,7 @@ class Branch(Base):
     location = Column(Geography(geometry_type='POINT', srid=4326, spatial_index=True), index=True)
     is_active = Column(Boolean)
     created_at = Column(DateTime, default=datetime.now(timezone.utc))
-    business = relationship('Business', backref=backref('branches', passive_deletes=True))
+    business: Mapped["Business"] = relationship(back_populates="branches")
 
 class BusinessStaff(Base):
     __tablename__ = 'business_staff'

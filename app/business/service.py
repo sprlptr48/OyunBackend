@@ -161,3 +161,19 @@ def edit_branch(db: Session, branch_id: int, update_data: BranchUpdateSchema, cu
     # yetki varsa güncelleme işlemini yap.
     updated_branch = crud.update_branch(db, db_branch, update_data)
     return updated_branch
+
+
+def get_business_details(db: Session, business_id: int):
+    """
+    İşletme detaylarını getir (şubeleriyle birlikte)
+    """
+    business = crud.get_business_with_branches_by_id(db, business_id)
+
+    if not business:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Business with the specified ID not found."
+        )
+
+
+    return business
