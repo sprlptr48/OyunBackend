@@ -125,3 +125,11 @@ class BranchSearchResponseList(BaseModel):
     success: bool
     message: str | None = None
     branches: list[BranchNearMeItem] | None = None
+
+
+class CustomSuccessResponse(BaseModel):
+    """
+    Başarılı silme veya benzeri işlemler için genel yanıt modeli.
+    """
+    success: bool
+    message: str

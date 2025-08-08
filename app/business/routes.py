@@ -13,7 +13,7 @@ from .models import *
 from .schemas import BusinessCreateResponse, BusinessCreateSchema, CustomBusinessCreationResponse, BranchCreateSchema, \
     CustomBranchCreationResponse, BranchCreateResponse, PointSchema, BranchNearMeResponseList, BranchListResponse, \
     CustomBranchDetailResponse, CustomBranchUpdateResponse, BranchUpdateSchema, CustomBusinessDetailResponse, \
-    BusinessDetailResponse, BranchSearchResponseList
+    BusinessDetailResponse, BranchSearchResponseList, CustomSuccessResponse
 from ..auth.models import User
 from ..auth.service import get_current_user
 from ..core.database import get_db
@@ -216,3 +216,20 @@ def search_branches_endpoint(keyword: str, lat: Optional[float] = None, lon: Opt
         message=f"{len(results)} branches found.",
         branches=results
     )
+
+@business_router.delete("/branches/{branch_id}", response_model=CustomSuccessResponse)
+def delete_branch_endpoint(branch_id: int, db: Session = Depends(get_db), current_user: User = Depends(get_current_user)):
+    """
+    Mevcut bir şubeyi siler.
+    Kimlik doğrulaması gerektirir;
+    Kullanıcı, şubenin ait olduğu işletmenin sahibi olmalıdır.
+    """
+    try:
+        return service.remove_branch(db=db, branch_id=branch_id, current_user=current_user)
+    except HTTPException as e:
+        # Servis katmanından gelen bilinen hataları (404, 403) yansıt
+        raise e
+    except Exception as e:
+        # Beklenmedik bir hata olursa 500 hatası dön
+        logger.error(f"Error deleting branch {branch_id}: {e}")
+        raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail="An unexpected error occurred while deleting the branch.")

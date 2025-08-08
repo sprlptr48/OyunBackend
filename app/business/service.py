@@ -14,7 +14,7 @@ from app.business import crud
 from app.business.crud import business_near_point, find_nearest_businesses_ordered
 from app.business.models import Business, Branch
 from app.business.schemas import BusinessCreateResponse, BusinessCreateSchema, PointSchema, BranchNearMeResponseList, \
-    BranchListResponse, BranchListItem, BranchNearMeItem, BranchDetailSchema, BranchUpdateSchema
+    BranchListResponse, BranchListItem, BranchNearMeItem, BranchDetailSchema, BranchUpdateSchema, CustomSuccessResponse
 
 
 def create_business(business_data: BusinessCreateSchema, db: Session) -> Business | None:
@@ -209,3 +209,24 @@ def search_for_branches(db: Session, keyword: str, lat: Optional[float], lon: Op
             )
         )
     return branch_responses
+
+def remove_branch(db: Session, branch_id: int, current_user: User) -> CustomSuccessResponse :
+    """
+    Bir şubeyi silmek için iş mantığını ve yetkilendirmeyi yönetir.
+    """
+    # Şube var mı? (get_branch_by_id)
+    db_branch = crud.get_branch_by_id(db, branch_id)
+    if not db_branch:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Branch not found"
+        )
+    #Bu kullanıcı bu şubeyi silebilir mi?
+    if db_branch.business.owner_id != current_user.userid:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="You do not have permission to delete this branch"
+        )
+    #Yetki varsa, sil.
+    crud.delete_branch(db, db_branch)
+    return CustomSuccessResponse(success=True, message="Branch deleted")

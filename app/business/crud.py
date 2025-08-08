@@ -151,3 +151,11 @@ def search_branches(db: Session, keyword: str, point: Optional[Point] = None, ra
     )
 
     return query.all()
+
+def delete_branch(db: Session, db_branch: Branch) -> None:
+    """
+    Verilen Branch nesnesini veritabanından siler.
+    """
+    db.delete(db_branch)
+    db.commit()
+    return
