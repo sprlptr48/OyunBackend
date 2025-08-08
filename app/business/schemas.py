@@ -133,3 +133,36 @@ class CustomSuccessResponse(BaseModel):
     """
     success: bool
     message: str
+
+
+class MyBranchInfo(BaseModel):
+    """
+    'Benim İşletmelerim' listesinde her bir branch için gösterilecek özet bilgi.
+    """
+    id: int
+    address_text: str
+    is_active: bool
+
+    model_config = ConfigDict(from_attributes=True)
+
+
+class MyBusinessListItem(BaseModel):
+    """
+    'Benim İşletmelerim' listesindeki her bir işletmeyi temsil eden model.
+    İşletmenin temel bilgilerini ve sahip olduğu şubelerin listesini içerir.
+    """
+    id: int
+    name: str
+    description: Optional[str] = None
+    is_active: bool
+    branches: List[MyBranchInfo] = [] # İşletmeye ait şubelerin listesi
+
+    model_config = ConfigDict(from_attributes=True)
+
+
+class MyBusinessListResponse(BaseModel):
+    """
+    /my-businesses endpoint'inin ana yanıt modeli.
+    """
+    success: bool
+    businesses: List[MyBusinessListItem] = []

@@ -13,7 +13,7 @@ from .models import *
 from .schemas import BusinessCreateResponse, BusinessCreateSchema, CustomBusinessCreationResponse, BranchCreateSchema, \
     CustomBranchCreationResponse, BranchCreateResponse, PointSchema, BranchNearMeResponseList, BranchListResponse, \
     CustomBranchDetailResponse, CustomBranchUpdateResponse, BranchUpdateSchema, CustomBusinessDetailResponse, \
-    BusinessDetailResponse, BranchSearchResponseList, CustomSuccessResponse
+    BusinessDetailResponse, BranchSearchResponseList, CustomSuccessResponse, MyBusinessListResponse
 from ..auth.models import User
 from ..auth.service import get_current_user
 from ..core.database import get_db
@@ -149,6 +149,15 @@ def update_branch_endpoint(branch_id: int, branch_data: BranchUpdateSchema, db: 
             detail="An unexpected error occurred."
         )
 
+@business_router.get("/my-businesses", response_model=MyBusinessListResponse)
+def get_my_businesses_endpoint(db: Session = Depends(get_db), current_user: User = Depends(get_current_user)):
+    """
+    Oturum açmış kullanıcının sahip olduğu tüm işletmeleri ve şubelerini listeler.
+    Authentication (Bearer Token) gerektirir.
+    """
+    user_businesses = service.get_my_businesses(db, current_user)
+
+    return MyBusinessListResponse(success=True, businesses=user_businesses)
 
 
 @business_router.get("/{business_id}", response_model=CustomBusinessDetailResponse)
@@ -233,3 +242,4 @@ def delete_branch_endpoint(branch_id: int, db: Session = Depends(get_db), curren
         # Beklenmedik bir hata olursa 500 hatası dön
         logger.error(f"Error deleting branch {branch_id}: {e}")
         raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail="An unexpected error occurred while deleting the branch.")
+

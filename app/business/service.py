@@ -163,6 +163,14 @@ def edit_branch(db: Session, branch_id: int, update_data: BranchUpdateSchema, cu
     updated_branch = crud.update_branch(db, db_branch, update_data)
     return updated_branch
 
+def get_my_businesses(db: Session, current_user: User):
+    """
+    Oturum açmış kullanıcının sahip olduğu işletmeleri listelemek için iş mantığını yönetir. Auth gerekli
+    """
+    businesses = crud.get_businesses_by_owner_id(db, owner_id=current_user.userid)
+    return businesses
+
+
 
 def get_business_details(db: Session, business_id: int):
     """
@@ -230,3 +238,4 @@ def remove_branch(db: Session, branch_id: int, current_user: User) -> CustomSucc
     #Yetki varsa, sil.
     crud.delete_branch(db, db_branch)
     return CustomSuccessResponse(success=True, message="Branch deleted")
+

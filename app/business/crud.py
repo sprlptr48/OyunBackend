@@ -159,3 +159,15 @@ def delete_branch(db: Session, db_branch: Branch) -> None:
     db.delete(db_branch)
     db.commit()
     return
+
+def get_businesses_by_owner_id(db: Session, owner_id: int) -> list[Business]:
+    """
+    Belirli bir sahip ID'sine ait tüm işletmeleri getirir.
+    Performans için kritik olan, ilişkili 'branches' verisini de aynı sorguda yükler.
+    Bu, N+1 sorgu problemini engeller.
+    """
+    return db.query(Business).options(
+        # 'branches' ilişkisini önceden yükle.
+        # Her işletme için ayrı bir şube sorgusu atılmasını önler.
+        joinedload(Business.branches)
+    ).filter(Business.owner_id == owner_id).all()
