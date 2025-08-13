@@ -50,7 +50,7 @@ async def edit_user_endpoint(user: UserUpdate, session: SessionSchema,  db: Sess
     return service.edit_user(user=user, session=session, db=db)
 
 
-@auth_router.get("/verify-session")
+@auth_router.post("/verify-session")
 async def verify_session_endpoint(session: SessionSchema, db: Session = Depends(get_db)):
     return service.verify_session(session, db)
 

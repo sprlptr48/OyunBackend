@@ -3,6 +3,7 @@ from contextlib import asynccontextmanager
 
 from fastapi import FastAPI
 from slowapi.middleware import SlowAPIMiddleware
+from starlette.middleware.cors import CORSMiddleware
 from starlette.responses import RedirectResponse
 from uvicorn.middleware.proxy_headers import ProxyHeadersMiddleware
 
@@ -22,6 +23,20 @@ app = FastAPI(lifespan=lifespan)
 
 app.include_router(auth_router)
 app.include_router(business_router)
+
+origins = [
+    "http://localhost",
+    "http://localhost:8000",
+    "http://localhost:51208",
+]
+
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=["*"], # Or your specific origins
+    allow_credentials=True,
+    allow_methods=["*"],
+    allow_headers=["*"],
+)
 
 app.state.limiter = limiter
 
