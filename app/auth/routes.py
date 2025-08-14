@@ -77,5 +77,4 @@ def delete_user_endpoint(session: str,  db: Session = Depends(get_db), current_u
 @auth_router.get("/users/me")
 def read_users_me(current_user: User = Depends(get_current_user)):
     user_data = ReturnUser.model_validate(current_user)
-    return {"user": user_data}
-
+    return {"success": True, "message": "User data retrieved successfully.", "data": { "user": user_data }}
