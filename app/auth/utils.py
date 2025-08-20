@@ -16,8 +16,6 @@ def verify_phone_format(phone: str):
 
 def normalize_phone(phone: str) -> str:
     """ Telefon numarasındaki boşlukları ve gereksiz işaretleri siler. """
-    if not isinstance(phone, str):
-        return ""
     # Remove spaces, dashes, underscores, parentheses, asterisks, etc.
     phone = phone.strip()
 

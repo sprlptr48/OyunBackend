@@ -18,9 +18,10 @@ from app.core.database import get_db
 def register(new_user: UserCreate, encrypted: bool, db: Session):
     if not verify_email_format(new_user.email):
         return {"success": False, "message": "Please enter a correct email"}
-    new_user.phone = normalize_phone(new_user.phone)
-    if not verify_phone_format(new_user.phone):
-        return {"success": False, "message": "Please enter a valid phone number"}
+    if isinstance(new_user.phone, str) and new_user.phone.strip(): # if phone is empty, or not an str at all, do not check
+        new_user.phone = normalize_phone(new_user.phone)
+        if not verify_phone_format(new_user.phone):
+            return {"success": False, "message": "Please enter a valid phone number"}
     if not encrypted:
         new_user.password = hash_password(new_user.password)
     user: User = User(**(new_user.model_dump()), user_status="open") # Gelen UserCreate schema User Model yapılır
