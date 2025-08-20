@@ -53,7 +53,7 @@ def create_branch_endpoint(branch_data: BranchCreateSchema, db: Session = Depend
     )
 
 # LAT: Kuzey güney LON: Doğu-Batı
-@business_router.get("/near-me")
+@business_router.get("/near-me", response_model=BranchNearMeResponseList)
 def business_near_me_endpoint(lat: float, lon: float, radius: int, db: Session = Depends(get_db)):
     """
     Takes in a Point(float longtitude, float latitude) and the radius and
