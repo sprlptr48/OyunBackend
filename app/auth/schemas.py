@@ -67,6 +67,10 @@ class RegisterResponse(BaseModel):
     success: bool
     message: str | None = None
     user: ReturnUser | None = None
-    session: SessionSchema | None = None
 
+class LoginResponse(BaseModel):
+    success: bool
+    message: str | None = None
+    user: ReturnUser | None = None
+    session: SessionSchema | None = None
 

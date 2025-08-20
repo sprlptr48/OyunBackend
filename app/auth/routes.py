@@ -5,7 +5,7 @@ from starlette.requests import Request
 
 from app.auth import service
 from app.auth.schemas import UserCreate, UserLogin, SessionSchema, RegisterResponse, ForgotPasswordSchema, \
-    ResetPasswordSchema, VerifyEmailSchema, UserLogoutSchema, ReturnUser
+    ResetPasswordSchema, VerifyEmailSchema, UserLogoutSchema, ReturnUser, LoginResponse
 from app.auth.crud import *
 from app.auth.service import get_current_user
 from app.core.database import get_db, Base, engine
@@ -34,12 +34,12 @@ def register(new_user: UserCreate, encrypted: bool, db: Session = Depends(get_db
     return result
 
 
-@auth_router.post("/login", response_model=RegisterResponse, status_code=200)
+@auth_router.post("/login", response_model=LoginResponse, status_code=200)
 async def login_endpoint(user: UserLogin, db: Session = Depends(get_db)):
     return service.login(user=user, db=db)
 
 
-@auth_router.post("/logout", response_model=RegisterResponse, status_code=200)
+@auth_router.post("/logout", response_model=LoginResponse, status_code=200)
 async def logout_endpoint(user: UserLogoutSchema, db: Session = Depends(get_db)):
     print("logged out")
     return await service.logout(user_data=user, db=db)
