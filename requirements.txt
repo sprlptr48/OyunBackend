@@ -24,4 +24,4 @@ shapely~=2.1.1
 starlette~=0.47.3
 urllib3~=2.5.0
 
-alembic~=1.16.4
+alembic>=1.16.4
