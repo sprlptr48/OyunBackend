@@ -1,5 +1,5 @@
 fastapi~=0.116.1
-sqlalchemy~=2.0.42
+sqlalchemy~=2.0.43
 dotenv~=0.9.9
 
 pydantic~=2.11.7
@@ -21,5 +21,7 @@ geoalchemy2~=0.18.0
 mypy~=1.17.1
 shapely~=2.1.1
 
-starlette~=0.47.2
+starlette~=0.47.3
 urllib3~=2.5.0
+
+alembic~=1.16.4

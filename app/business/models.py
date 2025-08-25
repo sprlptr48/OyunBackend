@@ -14,7 +14,7 @@ class Business(Base):
     name = Column(String(length=50))
     description = Column(String(length=255))
     #business_type_id = Column(Integer, ForeignKey('business_types.id'))
-    is_active = Column(Boolean)
+    is_active = Column(Boolean, index=True)
     created_at = Column(DateTime, default=lambda: datetime.now(timezone.utc))
     branches: Mapped[List["Branch"]] = relationship(back_populates="business") #doesn't exist normally, just a type hint.
 
@@ -22,11 +22,11 @@ class Business(Base):
 class Branch(Base):
     __tablename__ = 'branch'
     id = Column(Integer, primary_key=True)
-    business_id = Column(Integer, ForeignKey('business.id', ondelete='CASCADE'))
+    business_id = Column(Integer, ForeignKey('business.id', ondelete='CASCADE'), index=True)
     address_text = Column(String(length=255))
     phone = Column(String(length=16))
     location = Column(Geography(geometry_type='POINT', srid=4326, spatial_index=True), index=True)
-    is_active = Column(Boolean)
+    is_active = Column(Boolean, index=True)
     created_at = Column(DateTime, default=datetime.now(timezone.utc))
     business: Mapped["Business"] = relationship(back_populates="branches")
 
