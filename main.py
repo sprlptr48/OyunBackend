@@ -12,6 +12,8 @@ from app.auth.routes import auth_router
 from app.core.limiter import limiter
 
 from app.business.routes import business_router
+from app.reviews.routes import reviews_router
+
 
 @asynccontextmanager
 async def lifespan(app_instance: FastAPI):
@@ -23,6 +25,7 @@ app = FastAPI(lifespan=lifespan)
 
 app.include_router(auth_router)
 app.include_router(business_router)
+app.include_router(reviews_router)
 
 origins = [
     "http://localhost",

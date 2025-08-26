@@ -47,7 +47,12 @@ Projeyi yerel ortamınızda kurmak ve çalıştırmak için aşağıdaki adımla
     ```bash
     pip install -r requirements.txt
     ```
-
+    Ayrıca konuma bağlı özellikler için `PostGIS`, string aramaları için de
+    `pg_trgm` eklentilerini PostgreSQL üzerine yüklemeniz gerekli.
+    ```postgresql
+    CREATE EXTENSION IF NOT EXISTS postgis;
+    CREATE EXTENSION IF NOT EXISTS pg_trgm;
+    ```
 4.  **Ortam Değişkenlerini Ayarlayın:**
     Proje, hassas bilgileri ve yapılandırma ayarlarını `.env` dosyası aracılığıyla yönetir. Proje kök dizininde `.env` adında bir dosya oluşturun ve aşağıdaki değişkenleri kendi değerlerinizle doldurun:
 
