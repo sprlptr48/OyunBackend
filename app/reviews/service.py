@@ -8,7 +8,7 @@ from starlette import status
 from app.auth.models import User
 from app.reviews import crud
 from app.reviews.models import Review
-from app.reviews.schemas import ReviewCreateSchema
+from app.reviews.schemas import ReviewCreateSchema, ReviewUpdateSchema
 
 logger = logging.getLogger('uvicorn.error')
 
@@ -56,4 +56,52 @@ def get_my_reviews(db: Session, current_user: User) -> List[Review]:
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail="An error occurred while fetching your reviews."
+        )
+
+def update_user_review(db: Session, review_id: int, review_data: ReviewUpdateSchema, current_user: User) -> Review:
+    """
+    Business logic for updating a review. Ensures the user owns the review.
+    """
+    review = crud.get_review_by_id(db, review_id)
+
+    if not review:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Review not found.")
+
+    if review.user_id != current_user.userid:
+        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN,
+                            detail="You do not have permission to edit this review.")
+
+    try:
+        return crud.update_review(db, review, review_data)
+    except Exception as e:
+        logger.error(f"Error updating review {review_id}: {e}")
+        db.rollback()
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail="An error occurred while updating the review."
+        )
+
+
+def delete_user_review(db: Session, review_id: int, current_user: User) -> None:
+    """
+    Business logic for deleting a review. Ensures the user owns the review.
+    """
+    review = crud.get_review_by_id(db, review_id)
+
+    if not review:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Review not found.")
+
+    if review.user_id != current_user.userid:
+        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN,
+                            detail="You do not have permission to delete this review.")
+
+    try:
+        crud.delete_review(db, review)
+        return
+    except Exception as e:
+        logger.error(f"Error deleting review {review_id}: {e}")
+        db.rollback()
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail="An error occurred while deleting the review."
         )

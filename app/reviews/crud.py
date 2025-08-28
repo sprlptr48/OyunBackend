@@ -1,9 +1,9 @@
-from typing import List
+from typing import List, Optional
 
 from sqlalchemy.orm import Session
 
 from app.reviews.models import Review
-from app.reviews.schemas import ReviewCreateSchema
+from app.reviews.schemas import ReviewCreateSchema, ReviewUpdateSchema
 
 
 def create_review(db: Session, review_data: ReviewCreateSchema, user_id: int) -> Review:
@@ -48,3 +48,31 @@ def get_reviews_by_user_id(db: Session, user_id: int) -> List[Review]:
         .order_by(Review.created_at.desc())
         .all()
     )
+
+def get_review_by_id(db: Session, review_id: int) -> Optional[Review]:
+    """
+    Retrieves a single review by its ID.
+    """
+    return db.query(Review).filter(Review.id == review_id).first()
+
+
+def update_review(db: Session, review: Review, update_data: ReviewUpdateSchema) -> Review:
+    """
+    Updates a review's rating and/or comment in the database.
+    The 'updated_at' timestamp will be handled automatically by the model.
+    """
+    update_dict = update_data.model_dump(exclude_unset=True)
+    for key, value in update_dict.items():
+        setattr(review, key, value)
+    db.commit()
+    db.refresh(review)
+    return review
+
+
+def delete_review(db: Session, review: Review) -> None:
+    """
+    Deletes a review from the database.
+    """
+    db.delete(review)
+    db.commit()
+    return

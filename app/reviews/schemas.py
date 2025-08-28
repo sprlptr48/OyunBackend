@@ -36,3 +36,18 @@ class CustomReviewListResponse(BaseModel):
     success: bool
     message: str
     reviews: List[ReviewResponseSchema] = []
+
+class ReviewUpdateSchema(BaseModel):
+    """
+    Schema for updating an existing review. All fields are optional.
+    """
+    rating: Optional[int] = Field(None, gt=0, lt=6, description="New rating from 1 to 5")
+    comment: Optional[str] = None
+
+
+class CustomSuccessResponse(BaseModel):
+    """
+    A generic success response for operations that don't return data.
+    """
+    success: bool
+    message: str

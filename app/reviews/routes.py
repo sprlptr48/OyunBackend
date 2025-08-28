@@ -10,7 +10,7 @@ from app.reviews import service
 from app.reviews.schemas import (
     ReviewCreateSchema,
     CustomReviewResponse,
-    CustomReviewListResponse
+    CustomReviewListResponse, CustomSuccessResponse, ReviewUpdateSchema
 )
 
 logger = logging.getLogger('uvicorn.error')
@@ -57,4 +57,41 @@ def get_my_reviews_endpoint(db: Session = Depends(get_db), current_user: User = 
         "success": True,
         "message": "reviews retrieved successfully",
         "reviews": reviews
+    }
+
+@reviews_router.put("/{review_id}", response_model=CustomReviewResponse)
+def update_review_endpoint(
+    review_id: int,
+    review_data: ReviewUpdateSchema,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user)
+):
+    """
+    Update an existing review.
+    - Requires authentication.
+    - User can only update their own reviews.
+    """
+    updated_review = service.update_user_review(db, review_id, review_data, current_user)
+    return {
+        "success": True,
+        "message": "Review updated successfully.",
+        "review": updated_review
+    }
+
+
+@reviews_router.delete("/{review_id}", response_model=CustomSuccessResponse)
+def delete_review_endpoint(
+    review_id: int,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user)
+):
+    """
+    Delete an existing review.
+    - Requires authentication.
+    - User can only delete their own reviews.
+    """
+    service.delete_user_review(db, review_id, current_user)
+    return {
+        "success": True,
+        "message": "Review deleted successfully."
     }
