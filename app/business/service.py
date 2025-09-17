@@ -186,7 +186,14 @@ def _calculate_is_open_and_format_branch(branch: Branch):
             if hour.opens <= current_time < hour.closes:
                 is_open = True
             break  # İlgili günü bulduk, döngüden çık
-
+    # 0,1,2 vb enum değerlerinden monday, tuesday.. stringlerine dönüştür.
+    formatted_opening_hours = [
+        {
+            "day_of_week": hour.day_of_week.name,
+            "opens": hour.opens,
+            "closes": hour.closes
+        } for hour in branch.opening_hours
+    ]
     # Şema için gerekli verileri hazırla
     branch_data = {
         'id': branch.id,
