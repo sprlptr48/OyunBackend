@@ -205,7 +205,7 @@ def _calculate_is_open_and_format_branch(branch: Branch):
         'is_active': branch.is_active,
         'business_description': branch.business.description,
         'created_at': branch.created_at,
-        'opening_hours': branch.opening_hours,
+        'opening_hours': formatted_opening_hours,
         'location': None
     }
 
