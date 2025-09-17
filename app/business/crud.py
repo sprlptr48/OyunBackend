@@ -6,7 +6,7 @@ from geoalchemy2.functions import ST_DWithin, ST_Distance, ST_SetSRID, ST_MakePo
 from geoalchemy2.shape import from_shape
 from shapely.geometry import Point
 
-from .models import Branch, Business  # Assuming models are in the same directory/module
+from .models import Branch, Business, DayOfWeekEnum, OpeningHour  # Assuming models are in the same directory/module
 from .schemas import BranchUpdateSchema
 
 
@@ -80,7 +80,8 @@ def get_branch_by_id(db: Session, branch_id: int) -> Branch | None:
     Performans için ilişkili 'business' verisini de aynı sorguda yükler (joinedload).
     """
     return db.query(Branch).options(
-        joinedload(Branch.business)
+        joinedload(Branch.business),
+        selectinload(Branch.opening_hours)
     ).filter(Branch.id == branch_id).first()
 
 
@@ -95,6 +96,20 @@ def update_branch(db: Session, db_branch: Branch, update_data: BranchUpdateSchem
         if key == "location" and value is not None:
             point = Point(value['longitude'], value['latitude'])
             setattr(db_branch, key, from_shape(point, srid=4326))
+        elif key == "opening_hours":
+            # 1. Mevcut tüm saatleri temizle
+            db_branch.opening_hours.clear()
+            # 2. Yeni gelen saatleri ekle
+            if value is not None:
+                for hour_data in value:
+                    # Pydantic Enum'ını (string) SQLAlchemy Enum'ına (integer) çevir
+                    day_enum = DayOfWeekEnum[hour_data['day_of_week'].lower()]
+                    new_hour = OpeningHour(
+                        day_of_week=day_enum,
+                        opens=hour_data['opens'],
+                        closes=hour_data['closes']
+                    )
+                    db_branch.opening_hours.append(new_hour)
         else:
             setattr(db_branch, key, value)
 

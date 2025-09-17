@@ -1,8 +1,9 @@
+import enum
 from datetime import datetime, timezone
 from typing import List
 
 from geoalchemy2 import Geography
-from sqlalchemy import Column, ForeignKey, Integer, String, DateTime, Boolean
+from sqlalchemy import Column, ForeignKey, Integer, String, DateTime, Boolean, Enum, Time
 from sqlalchemy.orm import backref, relationship, Mapped
 
 from app.core.database import Base
@@ -29,6 +30,30 @@ class Branch(Base):
     is_active = Column(Boolean, index=True)
     created_at = Column(DateTime, default=datetime.now(timezone.utc))
     business: Mapped["Business"] = relationship(back_populates="branches")
+    opening_hours: Mapped[List["OpeningHour"]] = relationship(
+        back_populates="branch", cascade="all, delete-orphan"
+    )
+
+# Veritabanında int, sadece kodda enum
+class DayOfWeekEnum(enum.Enum):
+    monday = 0
+    tuesday = 1
+    wednesday = 2
+    thursday = 3
+    friday = 4
+    saturday = 5
+    sunday = 6
+
+class OpeningHour(Base):
+    __tablename__ = 'opening_hours'
+    id = Column(Integer, primary_key=True)
+    branch_id = Column(Integer, ForeignKey('branch.id', ondelete='CASCADE'), index=True, nullable=False)
+    day_of_week = Column(Enum(DayOfWeekEnum, name="day_of_week_enum", native_enum=False), nullable=False)
+    opens = Column(Time, nullable=False)
+    closes = Column(Time, nullable=False)
+
+    branch: Mapped["Branch"] = relationship(back_populates="opening_hours")
+
 
 class BusinessStaff(Base):
     __tablename__ = 'business_staff'

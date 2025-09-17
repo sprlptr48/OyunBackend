@@ -1,4 +1,5 @@
-from datetime import datetime, timezone
+import enum
+from datetime import datetime, timezone, time
 from typing import Optional, List
 
 from pydantic import ConfigDict, BaseModel
@@ -17,6 +18,22 @@ class CustomBusinessCreationResponse(BaseModel):
     success: bool
     message: str
     business: BusinessCreateResponse | None = None
+
+# API'de "monday", "tuesday" gibi stringler için
+class DayOfWeek(str, enum.Enum):
+    MONDAY = "monday"
+    TUESDAY = "tuesday"
+    WEDNESDAY = "wednesday"
+    THURSDAY = "thursday"
+    FRIDAY = "friday"
+    SATURDAY = "saturday"
+    SUNDAY = "sunday"
+
+class OpeningHourSchema(BaseModel):
+    day_of_week: DayOfWeek
+    opens: time
+    closes: time
+    model_config = ConfigDict(from_attributes=True)
 
 class PointSchema(BaseModel):
     latitude: float
@@ -43,6 +60,7 @@ class BranchNearMeItem(BaseModel):
     business_id: int
     business_name: str  # JOIN ile business tablosundan
     location: PointSchema | None
+    is_open: bool
 
     model_config = ConfigDict(from_attributes=True)
 
@@ -58,6 +76,7 @@ class BranchListItem(BaseModel):
     business_name: str  # JOIN ile business tablosundan
     location: PointSchema | None
     distance: float
+    is_open: bool
 
     model_config = ConfigDict(from_attributes=True)
 
@@ -77,6 +96,8 @@ class BranchDetailSchema(BaseModel):
     business_id: int
     business_name: str
     business_description: str
+    is_open: bool
+    opening_hours: List[OpeningHourSchema] = []
     created_at: datetime | None = None
 
     model_config = ConfigDict(from_attributes=True)
@@ -92,6 +113,7 @@ class BranchUpdateSchema(BaseModel):
     phone: Optional[str] = None
     location: Optional[PointSchema] = None
     is_active: Optional[bool] = None
+    opening_hours: Optional[List[OpeningHourSchema]]
 
     model_config = ConfigDict(from_attributes=True)
 

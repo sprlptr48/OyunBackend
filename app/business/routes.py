@@ -19,7 +19,7 @@ from ..auth.service import get_current_user
 from ..core.database import get_db
 
 logger = logging.getLogger('uvicorn.error')
-business_router = APIRouter(prefix="/business", tags=["Auth"])
+business_router = APIRouter(prefix="/business", tags=["Businesses"])
 
 @business_router.post("/create", response_model=CustomBusinessCreationResponse)
 def create_business_endpoint(business_data: BusinessCreateSchema, db: Session = Depends(get_db)):
