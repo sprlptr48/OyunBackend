@@ -139,25 +139,15 @@ def search_for_branches(db: Session, keyword: str, lat: Optional[float], lon: Op
         point = Point(lon, lat)
 
     branches = crud.search_branches(db, keyword=keyword, point=point, radius=radius)
-    # Sonuçları Pydantic şemasına dönüştür.
-    branch_responses = []
+    if not branches:
+        return None
+
+    result_list = []
     for branch in branches:
-        location_schema = None
-        if branch.location:
-            shapely_point = to_shape(branch.location)
-            location_schema = PointSchema(
-                latitude=shapely_point.y,
-                longitude=shapely_point.x
-            )
-        branch_responses.append(
-            BranchNearMeItem(
-                id=branch.id,
-                business_id=branch.business_id,
-                business_name=branch.business.name,
-                location=location_schema
-            )
-        )
-    return branch_responses
+        formatted_data = _calculate_is_open_and_format_branch(branch)
+        result_list.append(BranchNearMeItem.model_validate(formatted_data))
+
+    return result_list
 
 def remove_branch(db: Session, branch_id: int, current_user: User) -> CustomSuccessResponse :
     """
