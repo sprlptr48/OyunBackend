@@ -178,23 +178,46 @@ def _calculate_is_open_and_format_branch(branch: Branch):
     """
     now_utc = datetime.now(timezone.utc)
     current_weekday = now_utc.weekday()  # Monday is 0, Sunday is 6
+    previous_weekday = (current_weekday - 1) % 7
     current_time = now_utc.time()
 
     is_open = False
+
+    # IS_OPEN Calculation
     for hour in branch.opening_hours:
-        if hour.day_of_week.value == current_weekday:
+        hour_weekday = hour.day_of_week.value
+
+        # Skip if this day is not relevant
+        if hour_weekday != current_weekday and hour_weekday != previous_weekday:
+            continue
+
+        # Case 1: Normal hours on current day (opens <= closes)
+        if hour_weekday == current_weekday and hour.opens <= hour.closes:
             if hour.opens <= current_time < hour.closes:
                 is_open = True
-            break  # İlgili günü bulduk, döngüden çık
-    # 0,1,2 vb enum değerlerinden monday, tuesday.. stringlerine dönüştür.
+                break
+
+        # Case 2: Overnight hours starting today (opens > closes)
+        elif hour_weekday == current_weekday and hour.opens > hour.closes:
+            if current_time >= hour.opens:
+                is_open = True
+                break
+
+        # Case 3: Overnight hours from previous day
+        elif hour_weekday == previous_weekday and hour.opens > hour.closes:
+            if current_time < hour.closes:
+                is_open = True
+                break
+
+    # Format opening hours for API response
     formatted_opening_hours = [
         {
-            "day_of_week": hour.day_of_week.name,
-            "opens": hour.opens,
-            "closes": hour.closes
+            "day_of_week": hour.day_of_week.name.lower(),
+            "opens": hour.opens.strftime("%H:%M:%S"),
+            "closes": hour.closes.strftime("%H:%M:%S")
         } for hour in branch.opening_hours
     ]
-    # Şema için gerekli verileri hazırla
+    # Format branch data for API response
     branch_data = {
         'id': branch.id,
         'business_id': branch.business_id,
@@ -214,5 +237,3 @@ def _calculate_is_open_and_format_branch(branch: Branch):
         branch_data['location'] = PointSchema(latitude=shapely_point.y, longitude=shapely_point.x)
 
     return branch_data
-
-
